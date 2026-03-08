@@ -340,7 +340,14 @@
             </div>
 
             <!-- Alert div pour succès/erreurs -->
-            <div id="alertContainer" class="hidden"></div>
+            <div id="alertContainer" class="hidden">
+                @if(session('message'))
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        {{ session('message') }}
+                    </div>
+                @endif
+            </div>
 
             <!-- Formulaire de Connexion -->
             <form id="loginForm" class="space-y-5">
