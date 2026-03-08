@@ -41,7 +41,7 @@ Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 
-Route::middleware('en.developpement')->group(function () {
+Route::middleware(['en.developpement'])->group(function () {
     // Route pour le dashboard (à protéger)
 Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard')->middleware('auth');
 

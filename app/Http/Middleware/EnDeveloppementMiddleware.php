@@ -20,6 +20,7 @@ class EnDeveloppementMiddleware
         // Vérifier si l'utilisateur est connecté
         if (Auth::check()) {
             // Message pour l'utilisateur connecté
+            Auth::logout(); // Déconnecter l'utilisateur
             return redirect()->back()->with('message', 'Cette fonctionnalité est en cours de développement');
         }
 
