@@ -49,11 +49,11 @@ Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard')->m
 Route::get('/home', function () {
     return view('home');
 })->name('home')->middleware('auth');
+// Authentification Ajax
+Route::post('/ajax-login', [AjaxAuthController::class, 'login'])->name('ajax.login');
 });
 
 
-// Authentification Ajax
-Route::post('/ajax-login', [AjaxAuthController::class, 'login'])->name('ajax.login');
 Route::post('/ajax/register', [AuthController::class, 'ajaxRegister'])->name('ajax.register');
 Route::get('/ajax-register', [AjaxAuthController::class, 'showRegisterForm'])->name('register');
 // Routes d'authentification sociale

@@ -344,8 +344,8 @@
             <!-- Alert div pour succès/erreurs -->
                 @if(session('message'))
             <div id="alertContainer">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
                         {{ session('message') }}
                     </div>
             </div>
