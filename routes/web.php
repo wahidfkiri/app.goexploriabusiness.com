@@ -41,13 +41,16 @@ Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 
-// Route pour le dashboard (à protéger)
+Route::middleware('en.developpement')->group(function () {
+    // Route pour le dashboard (à protéger)
 Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard')->middleware('auth');
 
 // Route pour le dashboard (à protéger)
 Route::get('/home', function () {
     return view('home');
 })->name('home')->middleware('auth');
+});
+
 
 // Authentification Ajax
 Route::post('/ajax-login', [AjaxAuthController::class, 'login'])->name('ajax.login');
