@@ -119,19 +119,23 @@ class AuthController extends Controller
             $role = $request->input('role', 'entreprise');
             $user->assignRole($role);
 
-            $etablissementData = [
-                'name' => $request->etablissement_name ?? $request->name,
-                'lname' => $request->lname,
-                'ville' => $request->ville,
-                'user_id' => $user->id,
-                'adresse' => $request->adresse,
-                'zip_code' => $request->zip_code,
-                'phone' => $request->phone,
-                'email_contact' => $request->email,
-                'is_active' => true,
-            ];
+            $needsEtablissement = in_array($role, ['entreprise', 'partenaire-affilie']);
 
-            Etablissement::create($etablissementData);
+            if ($needsEtablissement) {
+                $etablissementData = [
+                    'name' => $request->etablissement_name ?? $request->name,
+                    'lname' => $request->lname,
+                    'ville' => $request->ville,
+                    'user_id' => $user->id,
+                    'adresse' => $request->adresse,
+                    'zip_code' => $request->zip_code,
+                    'phone' => $request->phone,
+                    'email_contact' => $request->email,
+                    'is_active' => true,
+                ];
+
+                Etablissement::create($etablissementData);
+            }
 
             auth()->login($user);
 
