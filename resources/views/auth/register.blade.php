@@ -444,8 +444,8 @@
                 @csrf
                 
                 <!-- Étape 1 -->
-                <div id="step1Form" class="form-step active">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Informations du compte</h3>
+                <div id="step1Form" class="form-step active space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Informations du compte</h3>
                     
                     <!-- Nom -->
                     <div class="relative">
@@ -523,11 +523,11 @@
                 </div>
 
                 <!-- Étape 2 : Informations de l'établissement -->
-                <div id="step2Form" class="form-step">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Informations professionnelles</h3>
+                <div id="step2Form" class="form-step space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Informations professionnelles</h3>
                     
                     <!-- Type de compte -->
-                    <div class="mb-4">
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-3">Type de compte</label>
                         <div class="grid grid-cols-2 gap-3">
                             <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleEntreprise">
@@ -647,8 +647,8 @@
                 </div>
 
                 <!-- Étape 3 : Conditions et finalisation -->
-                <div id="step3Form" class="form-step">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Finalisation</h3>
+                <div id="step3Form" class="form-step space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Finalisation</h3>
                     
                     <!-- Conditions d'utilisation -->
                     <div class="border border-gray-200 rounded-lg p-4 mb-4">

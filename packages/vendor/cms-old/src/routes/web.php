@@ -90,10 +90,14 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     // ==================================================================
     // THÈMES GLOBAUX — hors préfixe établissement
+    // URL: admin/cms/themes/*
     // ==================================================================
     Route::prefix('admin/cms/themes')->name('cms.admin.themes.')->group(function () {
+        // Liste & upload global
         Route::get('/', [AdminThemeController::class, 'index'])->name('index');
         Route::post('/', [AdminThemeController::class, 'store'])->name('store');
+
+        // Actions sur un thème global
         Route::put('/{id}', [AdminThemeController::class, 'update'])->name('update');
         Route::delete('/{id}', [AdminThemeController::class, 'destroy'])->name('destroy');
         Route::post('/{id}/duplicate', [AdminThemeController::class, 'duplicate'])->name('duplicate');
@@ -130,16 +134,6 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/api/ecommerce/products', [DashboardController::class, 'ecommerceProducts'])->name('dashboard.ecommerce.products');
         Route::get('/api/ecommerce/orders', [DashboardController::class, 'ecommerceOrders'])->name('dashboard.ecommerce.orders');
         Route::post('/api/ecommerce/orders/{invoiceId}/mark-paid', [DashboardController::class, 'ecommerceMarkOrderPaid'])->name('dashboard.ecommerce.orders.mark-paid');
-
-        // Thèmes scoped à l'établissement
-        Route::prefix('/themes')->name('etab.themes.')->group(function () {
-            Route::post('/{id}/install', [AdminThemeController::class, 'install'])->name('install');
-            Route::post('/{id}/activate', [AdminThemeController::class, 'activate'])->name('activate');
-            Route::post('/{id}/deactivate', [AdminThemeController::class, 'deactivate'])->name('deactivate');
-            Route::post('/{id}/attach', [AdminThemeController::class, 'attach'])->name('attach');
-            Route::delete('/{id}/detach', [AdminThemeController::class, 'detach'])->name('detach');
-            Route::get('/{id}/preview', [AdminThemeController::class, 'preview'])->name('preview');
-        });
 
         // Settings
         Route::prefix('/settings')->name('settings.')->group(function () {
@@ -180,6 +174,19 @@ Route::middleware(['web', 'auth'])->group(function () {
             Route::put('/{id}', [MapVideoController::class, 'update'])->name('update');
             Route::delete('/{id}', [MapVideoController::class, 'destroy'])->name('destroy');
             Route::post('/{id}/toggle', [MapVideoController::class, 'toggle'])->name('toggle');
+        });
+
+        // ------------------------------------------------------------------
+        // Actions thèmes scoped à l'établissement (lier/activer/prévisualiser)
+        // URL: admin/cms/{etablissementId}/themes/{id}/*
+        // ------------------------------------------------------------------
+        Route::prefix('/themes')->name('etab.themes.')->group(function () {
+            Route::post('/{id}/install', [AdminThemeController::class, 'install'])->name('install');
+            Route::post('/{id}/activate', [AdminThemeController::class, 'activate'])->name('activate');
+            Route::post('/{id}/deactivate', [AdminThemeController::class, 'deactivate'])->name('deactivate');
+            Route::post('/{id}/attach', [AdminThemeController::class, 'attach'])->name('attach');
+            Route::delete('/{id}/detach', [AdminThemeController::class, 'detach'])->name('detach');
+            Route::get('/{id}/preview', [AdminThemeController::class, 'preview'])->name('preview');
         });
 
         // Pages
@@ -229,7 +236,7 @@ Route::middleware(['web', 'auth'])->group(function () {
             Route::post('/{id}/unpublish', [BlogController::class, 'unpublish'])->name('unpublish');
         });
 
-        // Blocks scoped à l'établissement
+        // Blocks
         Route::prefix('/blocks')->name('blocks.')->group(function () {
             Route::get('/', [BlockController::class, 'index'])->name('index');
             Route::get('/api', [BlockController::class, 'api'])->name('api');

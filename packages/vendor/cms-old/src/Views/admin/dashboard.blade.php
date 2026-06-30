@@ -14,7 +14,9 @@
                 <a href="{{ route('cms.admin.pages.create', ['etablissementId' => $stats['etablissement']->id]) }}" class="btn btn-primary">
                     <i class="fas fa-plus-circle me-2"></i>Nouvelle page
                 </a>
-
+                <a href="{{ route('cms.admin.themes.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-file-code me-2"></i>Templates CMS
+                </a>
             </div>
         </div>
 
@@ -28,112 +30,10 @@
         <!-- Main Content -->
         <div class="main-card-modern mt-4">
             <div class="row g-0">
-                <!-- Left Vertical Tabs -->
-                <div class="col-md-3">
-                    <div class="vertical-tabs-wrapper-modern">
-                        <div class="profile-header-modern">
-                            <div class="profile-avatar-modern">
-                                <div class="avatar-gradient">
-                                    <i class="fas fa-building"></i>
-                                </div>
-                                <div class="avatar-status {{ $stats['etablissement']->is_active ? 'active' : 'inactive' }}"></div>
-                            </div>
-                            <div class="profile-info-modern">
-                                <h4 class="profile-name-modern">{{ $stats['etablissement']->name }}</h4>
-                                <p class="profile-type-modern">{{ $stats['etablissement']->lname ?? 'Établissement' }}</p>
-                                @if($stats['etablissement']->is_active)
-                                    <span class="badge-active"><i class="fas fa-check-circle"></i> Actif</span>
-                                @else
-                                    <span class="badge-inactive"><i class="fas fa-times-circle"></i> Inactif</span>
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="tabs-search-modern">
-                            <div class="search-input-wrapper">
-                                <i class="fas fa-search search-icon"></i>
-                                <input type="text" class="search-input" id="tabSearch" placeholder="Rechercher un onglet..." oninput="filterTabs(this.value)">
-                            </div>
-                        </div>
-
-                        <div class="vertical-tabs-modern" id="verticalTabList">
-                            <button class="nav-link-modern active" data-bs-toggle="pill" data-bs-target="#v-pills-dashboard" type="button" role="tab">
-                                <i class="fas fa-tachometer-alt"></i>
-                                <span>Tableau de bord</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-pages" type="button" role="tab">
-                                <i class="fas fa-file-alt"></i>
-                                <span>Pages</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-blogs" type="button" role="tab">
-                                <i class="fas fa-blog"></i>
-                                <span>Blog</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-header-footer" type="button" role="tab">
-                                <i class="fas fa-window-maximize"></i>
-                                <span>Header &amp; Footer</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-config" type="button" role="tab">
-                                <i class="fas fa-cog"></i>
-                                <span>Configuration</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-social" type="button" role="tab">
-                                <i class="fas fa-share-alt"></i>
-                                <span>Réseaux sociaux</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-seo" type="button" role="tab">
-                                <i class="fas fa-chart-line"></i>
-                                <span>SEO</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-slider" type="button" role="tab">
-                                <i class="fas fa-images"></i>
-                                <span>Sliders</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-slideshow" type="button" role="tab">
-                                <i class="fas fa-play-circle"></i>
-                                <span>Slideshow</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-map-videos" type="button" role="tab">
-                                <i class="fas fa-video"></i>
-                                <span>Vidéos maps</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-ecommerce" type="button" role="tab">
-                                <i class="fas fa-shopping-cart"></i>
-                                <span>E-commerce</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-themes" type="button" role="tab">
-                                <i class="fas fa-paint-brush"></i>
-                                <span>Thèmes</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-media" type="button" role="tab">
-                                <i class="fas fa-image"></i>
-                                <span>Médiathèque</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-newsletter" type="button" role="tab">
-                                <i class="fas fa-envelope-open-text"></i>
-                                <span>Newsletter</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-subscribers" type="button" role="tab">
-                                <i class="fas fa-users"></i>
-                                <span>Abonnés</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-contact-messages" type="button" role="tab">
-                                <i class="fas fa-inbox"></i>
-                                <span>Messages contact</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-comments" type="button" role="tab">
-                                <i class="fas fa-comments"></i>
-                                <span>Commentaires</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-danger" type="button" role="tab">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <span>Zone de danger</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right Tab Content -->
+                <!-- Left Menu -->
+                @include('cms::admin.partials.left-menu')
+                
+                <!-- Right Content -->
                 <div class="col-md-9">
                     <div class="tab-content-wrapper">
                         <div class="tab-content">
@@ -146,6 +46,9 @@
                             <!-- Blogs -->
                             @include('cms::admin.partials.blogs-tab')
                             
+                            <!-- Thèmes -->
+                            @include('cms::admin.partials.themes-tab')
+
                             <!-- Header & Footer -->
                             @include('cms::admin.partials.header-footer-tab')
                             
@@ -169,10 +72,7 @@
 
                             <!-- E-commerce -->
                             @include('cms::admin.partials.ecommerce-tab')
-
-                            <!-- Thèmes -->
-                            @include('cms::admin.partials.themes-tab')
-
+                            
                             <!-- Médiathèque -->
                             @include('cms::admin.partials.media-tab')
                             

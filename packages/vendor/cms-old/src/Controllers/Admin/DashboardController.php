@@ -79,15 +79,20 @@ class DashboardController extends Controller
                 : null;
             $hasProductsTable = Schema::hasTable('products');
 
+            // Tous les thèmes globaux disponibles (pour l'onglet Thèmes du dashboard)
             $allGlobalTemplates = CmsTemplate::available()->orderByDesc('created_at')->get();
+ 
+// IDs des thèmes déjà liés à cet établissement
             $linkedTemplates = EtablissementTemplate::with('template', 'page')
                 ->where('etablissement_id', $etablissement->id)
                 ->orderByDesc('is_active')
                 ->orderByDesc('updated_at')
                 ->get();
+ 
+// Thème actif pour cet établissement
             $activeTemplate = $linkedTemplates->firstWhere('is_active', true);
             $installedTemplateIds = $linkedTemplates->pluck('template_cms_id')->all();
-
+            
             $stats = [
                 // Statistiques pages
                 'total_pages' => $pages->count(),
@@ -103,6 +108,13 @@ class DashboardController extends Controller
                 'recent_blog_posts' => $hasBlogTable ? (clone $blogPosts)->orderByDesc('updated_at')->limit(5)->get() : collect(),
                 
                 // ============================================
+                // STATISTIQUES THÈMES (NOUVELLE ARCHITECTURE)
+                // ============================================
+                
+                'recent_themes' => $linkedTemplates->take(5),
+
+
+                     // ============================================
     // STATISTIQUES SEO (NOUVEAU)
     // ============================================
     'seo' => $this->getSeoStats($etablissement->id),
@@ -185,19 +197,6 @@ class DashboardController extends Controller
                 'ecommerce_revenue' => Invoice::where('status', 'payee')
                     ->sum('total'),
                 
-                // Statistiques thèmes/templates
-                'recent_themes' => $linkedTemplates->take(5),
-                'total_themes' => $allGlobalTemplates->count(),
-                'all_global_themes' => $allGlobalTemplates,
-                'my_theme_ids' => $installedTemplateIds,
-                'active_theme' => $activeTemplate,
-                'themes' => $linkedTemplates,
-                'all_global_templates' => $allGlobalTemplates,
-                'linked_templates' => $linkedTemplates,
-                'active_template' => $activeTemplate,
-                'installed_template_ids' => $installedTemplateIds,
-                'blocks_count' => Schema::hasTable('blocks') ? \App\Models\Block::count() : 0,
-
                 // Établissement et utilisateur
                 'etablissement' => $etablissement,
                 'site_name' => $siteName,
@@ -205,7 +204,20 @@ class DashboardController extends Controller
                 'site_url' => "{$themeBaseUrl}/company/{$etablissement->id}/{$siteSlug}",
                 'user' => $user,
             ];
-            $stats['homepage']          = optional(
+
+            
+                    // Dans $stats, ajouter/remplacer :
+                    $stats['total_themes']      = $allGlobalTemplates->count();
+                    $stats['all_global_themes'] = $allGlobalTemplates;
+                    $stats['my_theme_ids']      = $installedTemplateIds;
+                    $stats['active_theme']      = $activeTemplate;
+                    $stats['themes']            = $linkedTemplates;
+                    $stats['all_global_templates'] = $allGlobalTemplates;
+                    $stats['linked_templates'] = $linkedTemplates;
+                    $stats['active_template'] = $activeTemplate;
+                    $stats['installed_template_ids'] = $installedTemplateIds;
+                    $stats['blocks_count'] = Schema::hasTable('blocks') ? \App\Models\Block::count() : 0;
+                    $stats['homepage']          = optional(
                          \Vendor\Cms\Models\Page::where('etablissement_id', $etablissement->id)
                            ->where('is_home', true)
                           ->first()
@@ -263,6 +275,12 @@ class DashboardController extends Controller
                             ->where('status', 'draft')
                             ->count()
                         : 0,
+                ],
+                'themes' => [
+                    'total' => EtablissementTemplate::where('etablissement_id', $etablissement->id)->count(),
+                    'active' => EtablissementTemplate::where('etablissement_id', $etablissement->id)
+                        ->where('is_active', true)
+                        ->count(),
                 ],
                 'media' => [
                     'total' => Media::where('etablissement_id', $etablissement->id)->count(),
