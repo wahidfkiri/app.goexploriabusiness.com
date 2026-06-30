@@ -220,6 +220,68 @@ class RolePermissionSeeder extends Seeder
         $guest->syncPermissions($guestPermissions);
         echo "✓ Rôle 'guest' créé avec " . $guest->permissions()->count() . " permissions\n";
 
+        // ==================== NOUVEAUX RÔLES MÉTIERS ====================
+
+        echo "\nCréation des rôles métiers...\n";
+
+        // Rôle ENTREPRISES
+        $entreprise = Role::updateOrCreate(
+            ['name' => 'entreprise', 'guard_name' => 'web'],
+            ['description' => 'Entreprises - Sociétés, agences, professionnels du tourisme']
+        );
+        $entreprisePermissions = Permission::whereIn('name', [
+            'view dashboard', 'view statistics', 'export data',
+            'view templates', 'create templates', 'edit templates', 'duplicate templates',
+            'view etablissements', 'create etablissements', 'edit etablissements',
+            'view etablissement stats', 'export etablissements',
+            'view destinations', 'view destination stats', 'export destinations',
+            'view reports', 'create reports', 'export reports',
+        ])->pluck('id');
+        $entreprise->syncPermissions($entreprisePermissions);
+        echo "✓ Rôle 'entreprise' créé avec " . $entreprise->permissions()->count() . " permissions\n";
+
+        // Rôle SPÉCIAUX VOYAGES
+        $specialVoyage = Role::updateOrCreate(
+            ['name' => 'special-voyage', 'guard_name' => 'web'],
+            ['description' => 'Spéciaux Voyages - Tours opérateurs, guides, transporteurs']
+        );
+        $specialVoyagePermissions = Permission::whereIn('name', [
+            'view dashboard', 'view statistics',
+            'view templates', 'create templates',
+            'view etablissements', 'edit etablissements',
+            'view destinations', 'create destinations', 'edit destinations',
+            'manage destination routes', 'view destination stats',
+            'view reports',
+        ])->pluck('id');
+        $specialVoyage->syncPermissions($specialVoyagePermissions);
+        echo "✓ Rôle 'special-voyage' créé avec " . $specialVoyage->permissions()->count() . " permissions\n";
+
+        // Rôle PARTENAIRES AFFILIÉS
+        $partenaireAffilie = Role::updateOrCreate(
+            ['name' => 'partenaire-affilie', 'guard_name' => 'web'],
+            ['description' => 'Partenaires Affiliés - Influenceurs, blogueurs, revendeurs']
+        );
+        $partenaireAffiliePermissions = Permission::whereIn('name', [
+            'view dashboard',
+            'view templates',
+            'view etablissements',
+            'view destinations',
+        ])->pluck('id');
+        $partenaireAffilie->syncPermissions($partenaireAffiliePermissions);
+        echo "✓ Rôle 'partenaire-affilie' créé avec " . $partenaireAffilie->permissions()->count() . " permissions\n";
+
+        // Rôle WEB VOYAGEURS
+        $webVoyageur = Role::updateOrCreate(
+            ['name' => 'web-voyageur', 'guard_name' => 'web'],
+            ['description' => 'Web Voyageurs - Voyageurs, passionnés, explorateurs']
+        );
+        $webVoyageurPermissions = Permission::whereIn('name', [
+            'view dashboard',
+            'view destinations',
+        ])->pluck('id');
+        $webVoyageur->syncPermissions($webVoyageurPermissions);
+        echo "✓ Rôle 'web-voyageur' créé avec " . $webVoyageur->permissions()->count() . " permissions\n";
+
         // ==================== CRÉATION DES UTILISATEURS DE TEST ====================
         
         echo "\nCréation des utilisateurs de test...\n";

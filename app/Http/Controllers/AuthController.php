@@ -60,7 +60,7 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'password_confirmation' => 'required|string|min:8',
-            'role' => 'nullable|string|in:client,user,manager',
+            'role' => 'nullable|string|in:entreprise,special-voyage,partenaire-affilie,web-voyageur',
             'etablissement_name' => 'nullable|string|max:255',
             'lname' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
@@ -96,7 +96,7 @@ class AuthController extends Controller
                 'is_active' => true,
             ]);
 
-            $role = $request->input('role', 'client');
+            $role = $request->input('role', 'entreprise');
             $user->assignRole($role);
 
             $etablissementData = [

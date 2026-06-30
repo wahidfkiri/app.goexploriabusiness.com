@@ -515,25 +515,31 @@
                     
                     <!-- Type de compte -->
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Type de compte</label>
-                        <div class="grid grid-cols-3 gap-2">
-                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleClient">
-                                <input type="radio" name="role" value="client" class="hidden" checked onchange="updateRoleSelection(this)">
-                                <i class="fas fa-user text-lg text-blue-600 mb-1"></i>
-                                <div class="text-xs font-medium text-gray-700">Client</div>
-                                <div class="text-xs text-gray-500">Accès limité</div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Type de compte</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleEntreprise">
+                                <input type="radio" name="role" value="entreprise" class="hidden" checked onchange="updateRoleSelection(this)">
+                                <i class="fas fa-building text-lg text-blue-600 mb-1"></i>
+                                <div class="text-xs font-semibold text-gray-700">ENTREPRISES</div>
+                                <div class="text-xs text-gray-500">Sociétés, agences, professionnels</div>
                             </label>
-                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleUser">
-                                <input type="radio" name="role" value="user" class="hidden" onchange="updateRoleSelection(this)">
-                                <i class="fas fa-user-tie text-lg text-green-600 mb-1"></i>
-                                <div class="text-xs font-medium text-gray-700">Utilisateur</div>
-                                <div class="text-xs text-gray-500">Accès standard</div>
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleSpecialVoyage">
+                                <input type="radio" name="role" value="special-voyage" class="hidden" onchange="updateRoleSelection(this)">
+                                <i class="fas fa-suitcase-rolling text-lg text-emerald-600 mb-1"></i>
+                                <div class="text-xs font-semibold text-gray-700">SPÉCIAUX VOYAGES</div>
+                                <div class="text-xs text-gray-500">Tours opérateurs, guides, transport</div>
                             </label>
-                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleManager">
-                                <input type="radio" name="role" value="manager" class="hidden" onchange="updateRoleSelection(this)">
-                                <i class="fas fa-user-cog text-lg text-purple-600 mb-1"></i>
-                                <div class="text-xs font-medium text-gray-700">Manager</div>
-                                <div class="text-xs text-gray-500">Gestion opérationnelle</div>
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="rolePartenaire">
+                                <input type="radio" name="role" value="partenaire-affilie" class="hidden" onchange="updateRoleSelection(this)">
+                                <i class="fas fa-handshake text-lg text-purple-600 mb-1"></i>
+                                <div class="text-xs font-semibold text-gray-700">PARTENAIRES AFFILIÉS</div>
+                                <div class="text-xs text-gray-500">Influenceurs, blogueurs, revendeurs</div>
+                            </label>
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleWebVoyageur">
+                                <input type="radio" name="role" value="web-voyageur" class="hidden" onchange="updateRoleSelection(this)">
+                                <i class="fas fa-globe text-lg text-amber-600 mb-1"></i>
+                                <div class="text-xs font-semibold text-gray-700">WEB VOYAGEURS</div>
+                                <div class="text-xs text-gray-500">Voyageurs, passionnés, explorateurs</div>
                             </label>
                         </div>
                     </div>
@@ -713,7 +719,7 @@
         // Role selection
         function updateRoleSelection(input) {
             document.querySelectorAll('[id^="role"]').forEach(el => {
-                if (el.id !== 'roleClient' && el.id !== 'roleUser' && el.id !== 'roleManager') return;
+                if (!el.id.startsWith('role')) return;
                 el.classList.remove('border-blue-600', 'bg-blue-50');
                 el.classList.add('border-gray-200');
             });
