@@ -17,6 +17,7 @@ class Etablissement extends Model
         'name',
         'slug',
         'lname',
+        'pays',
         'ville',
         'user_id',
         'adresse',

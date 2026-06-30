@@ -85,6 +85,7 @@ class AuthController extends Controller
             'lname' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
             'adresse' => 'nullable|string|max:255',
+            'pays' => 'nullable|string|max:100',
             'ville' => 'nullable|string|max:100',
             'zip_code' => 'nullable|string|max:10',
             'terms' => 'required|in:1,true,on',
@@ -125,6 +126,7 @@ class AuthController extends Controller
                 $etablissementData = [
                     'name' => $request->etablissement_name ?? $request->name,
                     'lname' => $request->lname,
+                    'pays' => $request->pays,
                     'ville' => $request->ville,
                     'user_id' => $user->id,
                     'adresse' => $request->adresse,

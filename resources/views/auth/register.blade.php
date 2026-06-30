@@ -622,6 +622,25 @@
                         </div>
                     </div>
 
+                    <!-- Pays avec drapeau -->
+                    <div class="relative">
+                        <div class="flex">
+                            <div class="relative flex-1">
+                                <select id="pays" name="pays" class="input-field w-full appearance-none" style="padding-left: 50px;">
+                                    <option value="">Sélectionnez un pays</option>
+                                </select>
+                                <label class="floating-label" for="pays" style="left: 50px;">Pays</label>
+                                <div class="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center" id="flagContainer">
+                                    <span id="flagPlaceholder" class="text-gray-400 text-sm"><i class="fas fa-globe"></i></span>
+                                    <img id="flagImage" src="" alt="" class="hidden" style="width: 24px; height: 16px; border-radius: 2px; object-fit: cover;">
+                                </div>
+                                <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                    <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Code postal -->
                     <div class="relative">
                         <input type="text" 
@@ -779,6 +798,274 @@
                 }
             }, 500);
         });
+
+        // Liste des pays avec codes ISO alpha-2 (pour les drapeaux via flagcdn.com)
+        const countries = [
+            {code: 'AF', name: 'Afghanistan'},
+            {code: 'ZA', name: 'Afrique du Sud'},
+            {code: 'AL', name: 'Albanie'},
+            {code: 'DZ', name: 'Algérie'},
+            {code: 'DE', name: 'Allemagne'},
+            {code: 'AD', name: 'Andorre'},
+            {code: 'AO', name: 'Angola'},
+            {code: 'AI', name: 'Anguilla'},
+            {code: 'AG', name: 'Antigua-et-Barbuda'},
+            {code: 'SA', name: 'Arabie Saoudite'},
+            {code: 'AR', name: 'Argentine'},
+            {code: 'AM', name: 'Arménie'},
+            {code: 'AW', name: 'Aruba'},
+            {code: 'AU', name: 'Australie'},
+            {code: 'AT', name: 'Autriche'},
+            {code: 'AZ', name: 'Azerbaïdjan'},
+            {code: 'BS', name: 'Bahamas'},
+            {code: 'BH', name: 'Bahreïn'},
+            {code: 'BD', name: 'Bangladesh'},
+            {code: 'BB', name: 'Barbade'},
+            {code: 'BE', name: 'Belgique'},
+            {code: 'BZ', name: 'Belize'},
+            {code: 'BJ', name: 'Bénin'},
+            {code: 'BM', name: 'Bermudes'},
+            {code: 'BT', name: 'Bhoutan'},
+            {code: 'BY', name: 'Biélorussie'},
+            {code: 'BO', name: 'Bolivie'},
+            {code: 'BA', name: 'Bosnie-Herzégovine'},
+            {code: 'BW', name: 'Botswana'},
+            {code: 'BR', name: 'Brésil'},
+            {code: 'BN', name: 'Brunéi'},
+            {code: 'BG', name: 'Bulgarie'},
+            {code: 'BF', name: 'Burkina Faso'},
+            {code: 'BI', name: 'Burundi'},
+            {code: 'KH', name: 'Cambodge'},
+            {code: 'CM', name: 'Cameroun'},
+            {code: 'CA', name: 'Canada'},
+            {code: 'CV', name: 'Cap-Vert'},
+            {code: 'CF', name: 'République Centrafricaine'},
+            {code: 'CL', name: 'Chili'},
+            {code: 'CN', name: 'Chine'},
+            {code: 'CY', name: 'Chypre'},
+            {code: 'CO', name: 'Colombie'},
+            {code: 'KM', name: 'Comores'},
+            {code: 'CG', name: 'Congo'},
+            {code: 'CD', name: 'République Démocratique du Congo'},
+            {code: 'KP', name: 'Corée du Nord'},
+            {code: 'KR', name: 'Corée du Sud'},
+            {code: 'CR', name: 'Costa Rica'},
+            {code: 'CI', name: "Côte d'Ivoire"},
+            {code: 'HR', name: 'Croatie'},
+            {code: 'CU', name: 'Cuba'},
+            {code: 'CW', name: 'Curaçao'},
+            {code: 'DK', name: 'Danemark'},
+            {code: 'DJ', name: 'Djibouti'},
+            {code: 'DM', name: 'Dominique'},
+            {code: 'EG', name: 'Égypte'},
+            {code: 'AE', name: 'Émirats Arabes Unis'},
+            {code: 'EC', name: 'Équateur'},
+            {code: 'ER', name: 'Érythrée'},
+            {code: 'ES', name: 'Espagne'},
+            {code: 'EE', name: 'Estonie'},
+            {code: 'US', name: 'États-Unis'},
+            {code: 'ET', name: 'Éthiopie'},
+            {code: 'FJ', name: 'Fidji'},
+            {code: 'FI', name: 'Finlande'},
+            {code: 'FR', name: 'France'},
+            {code: 'GA', name: 'Gabon'},
+            {code: 'GM', name: 'Gambie'},
+            {code: 'GE', name: 'Géorgie'},
+            {code: 'GH', name: 'Ghana'},
+            {code: 'GI', name: 'Gibraltar'},
+            {code: 'GR', name: 'Grèce'},
+            {code: 'GD', name: 'Grenade'},
+            {code: 'GL', name: 'Groenland'},
+            {code: 'GP', name: 'Guadeloupe'},
+            {code: 'GU', name: 'Guam'},
+            {code: 'GT', name: 'Guatemala'},
+            {code: 'GG', name: 'Guernesey'},
+            {code: 'GN', name: 'Guinée'},
+            {code: 'GQ', name: 'Guinée Équatoriale'},
+            {code: 'GW', name: 'Guinée-Bissau'},
+            {code: 'GY', name: 'Guyana'},
+            {code: 'GF', name: 'Guyane Française'},
+            {code: 'HT', name: 'Haïti'},
+            {code: 'HN', name: 'Honduras'},
+            {code: 'HU', name: 'Hongrie'},
+            {code: 'HK', name: 'Hong Kong'},
+            {code: 'IN', name: 'Inde'},
+            {code: 'ID', name: 'Indonésie'},
+            {code: 'IR', name: 'Iran'},
+            {code: 'IQ', name: 'Irak'},
+            {code: 'IE', name: 'Irlande'},
+            {code: 'IS', name: 'Islande'},
+            {code: 'IL', name: 'Israël'},
+            {code: 'IT', name: 'Italie'},
+            {code: 'JM', name: 'Jamaïque'},
+            {code: 'JP', name: 'Japon'},
+            {code: 'JE', name: 'Jersey'},
+            {code: 'JO', name: 'Jordanie'},
+            {code: 'KZ', name: 'Kazakhstan'},
+            {code: 'KE', name: 'Kenya'},
+            {code: 'KG', name: 'Kirghizistan'},
+            {code: 'KI', name: 'Kiribati'},
+            {code: 'KW', name: 'Koweït'},
+            {code: 'LA', name: 'Laos'},
+            {code: 'LS', name: 'Lesotho'},
+            {code: 'LV', name: 'Lettonie'},
+            {code: 'LB', name: 'Liban'},
+            {code: 'LR', name: 'Libéria'},
+            {code: 'LY', name: 'Libye'},
+            {code: 'LI', name: 'Liechtenstein'},
+            {code: 'LT', name: 'Lituanie'},
+            {code: 'LU', name: 'Luxembourg'},
+            {code: 'MO', name: 'Macao'},
+            {code: 'MK', name: 'Macédoine du Nord'},
+            {code: 'MG', name: 'Madagascar'},
+            {code: 'MY', name: 'Malaisie'},
+            {code: 'MW', name: 'Malawi'},
+            {code: 'MV', name: 'Maldives'},
+            {code: 'ML', name: 'Mali'},
+            {code: 'MT', name: 'Malte'},
+            {code: 'MA', name: 'Maroc'},
+            {code: 'MQ', name: 'Martinique'},
+            {code: 'MU', name: 'Maurice'},
+            {code: 'MR', name: 'Mauritanie'},
+            {code: 'YT', name: 'Mayotte'},
+            {code: 'MX', name: 'Mexique'},
+            {code: 'MD', name: 'Moldavie'},
+            {code: 'MC', name: 'Monaco'},
+            {code: 'MN', name: 'Mongolie'},
+            {code: 'ME', name: 'Monténégro'},
+            {code: 'MS', name: 'Montserrat'},
+            {code: 'MZ', name: 'Mozambique'},
+            {code: 'MM', name: 'Myanmar'},
+            {code: 'NA', name: 'Namibie'},
+            {code: 'NR', name: 'Nauru'},
+            {code: 'NP', name: 'Népal'},
+            {code: 'NI', name: 'Nicaragua'},
+            {code: 'NE', name: 'Niger'},
+            {code: 'NG', name: 'Nigéria'},
+            {code: 'NO', name: 'Norvège'},
+            {code: 'NC', name: 'Nouvelle-Calédonie'},
+            {code: 'NZ', name: 'Nouvelle-Zélande'},
+            {code: 'OM', name: 'Oman'},
+            {code: 'UG', name: 'Ouganda'},
+            {code: 'UZ', name: 'Ouzbékistan'},
+            {code: 'PK', name: 'Pakistan'},
+            {code: 'PW', name: 'Palaos'},
+            {code: 'PS', name: 'Palestine'},
+            {code: 'PA', name: 'Panama'},
+            {code: 'PG', name: 'Papouasie-Nouvelle-Guinée'},
+            {code: 'PY', name: 'Paraguay'},
+            {code: 'NL', name: 'Pays-Bas'},
+            {code: 'PE', name: 'Pérou'},
+            {code: 'PH', name: 'Philippines'},
+            {code: 'PN', name: 'Pitcairn'},
+            {code: 'PL', name: 'Pologne'},
+            {code: 'PF', name: 'Polynésie Française'},
+            {code: 'PR', name: 'Porto Rico'},
+            {code: 'PT', name: 'Portugal'},
+            {code: 'QA', name: 'Qatar'},
+            {code: 'RE', name: 'La Réunion'},
+            {code: 'RO', name: 'Roumanie'},
+            {code: 'GB', name: 'Royaume-Uni'},
+            {code: 'RU', name: 'Russie'},
+            {code: 'RW', name: 'Rwanda'},
+            {code: 'EH', name: 'Sahara Occidental'},
+            {code: 'BL', name: 'Saint-Barthélemy'},
+            {code: 'SH', name: 'Sainte-Hélène'},
+            {code: 'LC', name: 'Sainte-Lucie'},
+            {code: 'KN', name: 'Saint-Christophe-et-Niévès'},
+            {code: 'SM', name: 'Saint-Marin'},
+            {code: 'MF', name: 'Saint-Martin'},
+            {code: 'PM', name: 'Saint-Pierre-et-Miquelon'},
+            {code: 'VC', name: 'Saint-Vincent-et-les-Grenadines'},
+            {code: 'SV', name: 'Salvador'},
+            {code: 'WS', name: 'Samoa'},
+            {code: 'AS', name: 'Samoa Américaines'},
+            {code: 'ST', name: 'Sao Tomé-et-Principe'},
+            {code: 'SN', name: 'Sénégal'},
+            {code: 'RS', name: 'Serbie'},
+            {code: 'SC', name: 'Seychelles'},
+            {code: 'SL', name: 'Sierra Leone'},
+            {code: 'SG', name: 'Singapour'},
+            {code: 'SX', name: 'Saint-Martin'},
+            {code: 'SK', name: 'Slovaquie'},
+            {code: 'SI', name: 'Slovénie'},
+            {code: 'SO', name: 'Somalie'},
+            {code: 'SD', name: 'Soudan'},
+            {code: 'SS', name: 'Soudan du Sud'},
+            {code: 'LK', name: 'Sri Lanka'},
+            {code: 'SE', name: 'Suède'},
+            {code: 'CH', name: 'Suisse'},
+            {code: 'SR', name: 'Suriname'},
+            {code: 'SJ', name: 'Svalbard et Jan Mayen'},
+            {code: 'SZ', name: 'Eswatini'},
+            {code: 'SY', name: 'Syrie'},
+            {code: 'TJ', name: 'Tadjikistan'},
+            {code: 'TW', name: 'Taïwan'},
+            {code: 'TZ', name: 'Tanzanie'},
+            {code: 'TD', name: 'Tchad'},
+            {code: 'CZ', name: 'Tchéquie'},
+            {code: 'TH', name: 'Thaïlande'},
+            {code: 'TL', name: 'Timor Oriental'},
+            {code: 'TG', name: 'Togo'},
+            {code: 'TK', name: 'Tokelau'},
+            {code: 'TO', name: 'Tonga'},
+            {code: 'TT', name: 'Trinité-et-Tobago'},
+            {code: 'TN', name: 'Tunisie'},
+            {code: 'TM', name: 'Turkménistan'},
+            {code: 'TC', name: 'Îles Turques-et-Caïques'},
+            {code: 'TR', name: 'Turquie'},
+            {code: 'TV', name: 'Tuvalu'},
+            {code: 'UA', name: 'Ukraine'},
+            {code: 'UY', name: 'Uruguay'},
+            {code: 'VU', name: 'Vanuatu'},
+            {code: 'VA', name: 'Vatican'},
+            {code: 'VE', name: 'Venezuela'},
+            {code: 'VN', name: 'Vietnam'},
+            {code: 'VG', name: 'Îles Vierges Britanniques'},
+            {code: 'VI', name: 'Îles Vierges Américaines'},
+            {code: 'WF', name: 'Wallis-et-Futuna'},
+            {code: 'YE', name: 'Yémen'},
+            {code: 'ZM', name: 'Zambie'},
+            {code: 'ZW', name: 'Zimbabwe'},
+        ];
+
+        // Initialiser le select des pays
+        (function initCountrySelect() {
+            const select = document.getElementById('pays');
+            countries.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                opt.dataset.code = c.code;
+                opt.textContent = c.name;
+                select.appendChild(opt);
+            });
+            select.addEventListener('change', updateFlag);
+            select.value = 'Canada';
+            updateFlag();
+        })();
+
+        function updateFlag() {
+            const select = document.getElementById('pays');
+            const placeholder = document.getElementById('flagPlaceholder');
+            const image = document.getElementById('flagImage');
+            const selectedOption = select.options[select.selectedIndex];
+
+            if (selectedOption && selectedOption.dataset.code) {
+                const code = selectedOption.dataset.code.toLowerCase();
+                placeholder.classList.add('hidden');
+                image.classList.remove('hidden');
+                image.src = 'https://flagcdn.com/w40/' + code + '.png';
+                image.alt = selectedOption.textContent;
+                image.onerror = function() {
+                    this.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                };
+            } else {
+                placeholder.classList.remove('hidden');
+                image.classList.add('hidden');
+                image.src = '';
+            }
+        }
 
         // Toggle password visibility
         function togglePassword(inputId, iconId) {
@@ -1011,6 +1298,7 @@
             formData.append('lname', document.getElementById('lname').value.trim());
             formData.append('phone', document.getElementById('phone').value.trim());
             formData.append('adresse', document.getElementById('adresse').value.trim());
+            formData.append('pays', document.getElementById('pays').value);
             formData.append('ville', document.getElementById('ville').value.trim());
             formData.append('zip_code', document.getElementById('zip_code').value.trim());
             
