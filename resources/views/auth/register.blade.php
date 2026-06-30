@@ -228,6 +228,15 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        .spinner-sm {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #E5E7EB;
+            border-radius: 50%;
+            border-top-color: #3B82F6;
+            animation: spin 1s linear infinite;
+        }
         
         .shake {
             animation: shake 0.5s ease-in-out;
@@ -460,12 +469,16 @@
                                name="email"
                                class="input-field w-full"
                                placeholder=" "
+                               autocomplete="email"
                                required>
                         <label class="floating-label">Adresse email</label>
                         <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
                             <i class="fas fa-envelope text-gray-400 text-sm"></i>
                         </div>
                         <div class="text-red-500 text-xs mt-1 hidden" id="emailError"></div>
+                        <div id="emailCheckIndicator" class="hidden absolute right-10 top-1/2 transform -translate-y-1/2">
+                            <div class="spinner-sm"></div>
+                        </div>
                     </div>
 
                     <!-- Mot de passe -->
@@ -728,6 +741,45 @@
             parent.classList.add('border-blue-600', 'bg-blue-50');
         }
 
+        // Email availability check with debounce
+        let emailCheckTimeout;
+        let emailExists = false;
+
+        document.getElementById('email').addEventListener('input', function() {
+            clearTimeout(emailCheckTimeout);
+            const email = this.value.trim();
+            const errorEl = document.getElementById('emailError');
+            const indicator = document.getElementById('emailCheckIndicator');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            errorEl.classList.add('hidden');
+            indicator.classList.add('hidden');
+            emailExists = false;
+
+            if (!email || !emailRegex.test(email)) return;
+
+            emailCheckTimeout = setTimeout(async () => {
+                indicator.classList.remove('hidden');
+
+                try {
+                    const response = await fetch('{{ route("ajax.check-email") }}?email=' + encodeURIComponent(email), {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await response.json();
+
+                    if (data.exists) {
+                        errorEl.textContent = data.message;
+                        errorEl.classList.remove('hidden');
+                        emailExists = true;
+                    }
+                } catch (e) {
+                    console.error('Email check error:', e);
+                } finally {
+                    indicator.classList.add('hidden');
+                }
+            }, 500);
+        });
+
         // Toggle password visibility
         function togglePassword(inputId, iconId) {
             const input = document.getElementById(inputId);
@@ -814,6 +866,11 @@
                 isValid = false;
             } else if (!emailRegex.test(email)) {
                 document.getElementById('emailError').textContent = 'Format d\'email invalide';
+                document.getElementById('emailError').classList.remove('hidden');
+                document.getElementById('email').classList.add('shake');
+                isValid = false;
+            } else if (emailExists) {
+                document.getElementById('emailError').textContent = 'Cet email est déjà utilisé';
                 document.getElementById('emailError').classList.remove('hidden');
                 document.getElementById('email').classList.add('shake');
                 isValid = false;

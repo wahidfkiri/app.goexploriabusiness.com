@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Support\Facades\Log;
 
 
 class AuthController extends Controller
@@ -51,6 +52,25 @@ class AuthController extends Controller
     public function showRegister()
     {
         return view('auth.register');
+    }
+
+    /**
+     * Vérifier si un email existe déjà (AJAX)
+     */
+    public function checkEmail(Request $request)
+    {
+        $email = $request->input('email');
+
+        if (!$email) {
+            return response()->json(['exists' => false]);
+        }
+
+        $exists = User::where('email', $email)->exists();
+
+        return response()->json([
+            'exists' => $exists,
+            'message' => $exists ? 'Cet email est déjà utilisé' : null,
+        ]);
     }
 
     public function ajaxRegister(Request $request)

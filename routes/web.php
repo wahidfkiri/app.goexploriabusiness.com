@@ -52,6 +52,7 @@ Route::get('/home', function () {
 // Authentification Ajax
 Route::post('/ajax-login', [AjaxAuthController::class, 'login'])->name('ajax.login');
 Route::post('/ajax/register', [AuthController::class, 'ajaxRegister'])->name('ajax.register');
+Route::get('/ajax/check-email', [AuthController::class, 'checkEmail'])->name('ajax.check-email');
 Route::get('/ajax-register', [AjaxAuthController::class, 'showRegisterForm'])->name('register');
 // Routes d'authentification sociale
 Route::get('/auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
