@@ -38,7 +38,7 @@ class AuthController extends Controller
         
         if (Auth::attempt($request->only('email', 'password'), $request->remember)) {
             $request->session()->regenerate();
-            return redirect()->intended(route('editor'));
+            return redirect()->intended(route('home'));
         }
         
         return back()->withErrors([
@@ -183,10 +183,10 @@ class AuthController extends Controller
         ]);
         
         Auth::login($user);
-        
-        return redirect()->route('editor');
+
+        return redirect()->route('home');
     }
-    
+
     /**
      * Logout
      */

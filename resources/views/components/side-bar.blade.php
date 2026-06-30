@@ -162,6 +162,18 @@
             </ul>
         </li>
         @endif
+
+        @if(auth()->user()->hasRole('entreprise') || auth()->user()->hasRole('partenaire-affilie'))
+        <li class="sidebar-section-header">
+            <span class="menu-text" style="font-size: 11px; text-transform: uppercase; color: #6B7280; padding: 8px 16px; display: block; font-weight: 600;">Espace établissement</span>
+        </li>
+        <li>
+            <a href="{{ route('etablissements.index') }}" class="menu-item {{ request()->routeIs('etablissements.*') ? 'active' : '' }}">
+                <span class="menu-icon"><i class="fas fa-building"></i></span>
+                <span class="menu-text">Mon Établissement</span>
+            </a>
+        </li>
+        @endif
         
         <li>
             <a class="menu-item" href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
