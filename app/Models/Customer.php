@@ -77,6 +77,11 @@ class Customer extends Model
         return $this->hasMany(Contract::class, 'client_id');
     }
 
+    public function onlineOrders()
+    {
+        return $this->hasMany(OnlineOrder::class, 'customer_id');
+    }
+
     public function getNomCompletAttribute()
     {
         if ($this->type === 'entreprise') {

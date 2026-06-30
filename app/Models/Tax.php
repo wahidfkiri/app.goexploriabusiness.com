@@ -42,4 +42,21 @@ class Tax extends Model
     {
         return $this->hasMany(QuoteLine::class);
     }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($tax) {
+            if ($tax->is_default) {
+                static::where('is_default', true)->update(['is_default' => false]);
+            }
+        });
+
+        static::updating(function ($tax) {
+            if ($tax->is_default && $tax->isDirty('is_default')) {
+                static::where('is_default', true)->update(['is_default' => false]);
+            }
+        });
+    }
 }

@@ -13,6 +13,8 @@ class Country extends Model
 {
     use HasFactory, SoftDeletes, HasPage;
 
+    protected $connection = 'mysql';
+
     protected $fillable = [
         'name',
         'code',
@@ -90,10 +92,22 @@ class Country extends Model
         return $this->hasMany(Province::class);
     }
 
+    public function calendarEvents(): HasMany
+    {
+        return $this->hasMany(\Vendor\Etablissement\Models\CountryCalendarEvent::class);
+    }
+
     
 // Dans app/Models/Country.php, ajoutez:
 public function villes(): HasMany
 {
     return $this->hasMany(Ville::class);
+}
+
+public function getImageUrlAttribute()
+{
+    if (!$this->image) return null;
+    if (str_starts_with($this->image, 'http')) return $this->image;
+    return asset('storage/' . $this->image);
 }
 }

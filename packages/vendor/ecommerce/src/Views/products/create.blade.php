@@ -11,7 +11,7 @@
             </h1>
             
             <div class="page-actions">
-                <a href="{{ route('products.index') }}" class="btn btn-outline-secondary me-2">
+                <a href="{{ route('products.index', ['etablissement_id' => $etablissementId ?? request('etablissement_id')]) }}" class="btn btn-outline-secondary me-2">
                     <i class="fas fa-arrow-left me-2"></i>Retour à la liste
                 </a>
                 <button type="button" class="btn btn-outline-primary" id="saveDraftBtn">
@@ -43,6 +43,7 @@
         <!-- Main Form -->
         <form id="productForm" enctype="multipart/form-data">
             @csrf
+            <input type="hidden" name="etablissement_id" value="{{ $etablissementId ?? request('etablissement_id') }}">
             
             <!-- Step 1: Type & Category -->
             <div class="form-step active" id="step1-content">
@@ -448,19 +449,19 @@
                                     <div class="card-body">
                                         <div class="row">
                                             <div class="col-md-3">
-                                                <input type="text" class="form-control-modern" placeholder="Nom (ex: Rouge, XL)" name="variants[INDEX][name]">
+                                                <input type="text" class="form-control-modern" placeholder="Nom (ex: Rouge, XL)" name="variants[INDEX][name]" disabled>
                                             </div>
                                             <div class="col-md-2">
-                                                <input type="text" class="form-control-modern" placeholder="SKU" name="variants[INDEX][sku]">
+                                                <input type="text" class="form-control-modern" placeholder="SKU" name="variants[INDEX][sku]" disabled>
                                             </div>
                                             <div class="col-md-2">
-                                                <input type="number" step="0.01" class="form-control-modern" placeholder="Prix +" name="variants[INDEX][price_adjustment]" value="0">
+                                                <input type="number" step="0.01" class="form-control-modern" placeholder="Prix +" name="variants[INDEX][price_adjustment]" value="0" disabled>
                                             </div>
                                             <div class="col-md-2">
-                                                <input type="number" class="form-control-modern" placeholder="Stock" name="variants[INDEX][stock]" value="0">
+                                                <input type="number" class="form-control-modern" placeholder="Stock" name="variants[INDEX][stock]" value="0" disabled>
                                             </div>
                                             <div class="col-md-2">
-                                                <input type="file" class="form-control-modern" name="variants[INDEX][image]" accept="image/*">
+                                                <input type="file" class="form-control-modern" name="variants[INDEX][image]" accept="image/*" disabled>
                                             </div>
                                             <div class="col-md-1">
                                                 <button type="button" class="btn btn-danger btn-sm remove-variant">
@@ -468,7 +469,7 @@
                                                 </button>
                                             </div>
                                         </div>
-                                        <input type="hidden" name="variants[INDEX][attributes]" value='{"generated":true}'>
+                                        <input type="hidden" name="variants[INDEX][attributes]" value='{"generated":true}' disabled>
                                     </div>
                                 </div>
                             </div>
@@ -671,6 +672,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const contextEtablissementId = @json((int) ($etablissementId ?? request('etablissement_id') ?? 0));
+            const contextQuery = contextEtablissementId > 0 ? ('?etablissement_id=' + contextEtablissementId) : '';
             // Initialize tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -912,6 +915,9 @@
                     div.innerHTML = html;
                     
                     const variantItem = div.firstElementChild;
+                    variantItem.querySelectorAll('input, select, textarea').forEach(field => {
+                        field.disabled = false;
+                    });
                     variantItem.querySelector('.remove-variant').addEventListener('click', function() {
                         variantItem.remove();
                     });
@@ -1038,7 +1044,7 @@
                             if (response.success) {
                                 showAlert('success', 'Produit créé avec succès !');
                                 setTimeout(() => {
-                                    window.location.href = '{{ route("products.index") }}';
+                                    window.location.href = '{{ route("products.index") }}' + contextQuery;
                                 }, 1500);
                             } else {
                                 showAlert('danger', response.message || 'Erreur lors de la création');

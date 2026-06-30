@@ -11,6 +11,8 @@ class Continent extends Model
 {
     use HasFactory, SoftDeletes, HasPage;
 
+    protected $connection = 'mysql';
+
     protected $fillable = [
         'name',
         'code',
@@ -63,5 +65,12 @@ class Continent extends Model
     public function getFormattedCountriesCountAttribute(): string
     {
         return number_format($this->countries_count ?? 0);
+    }
+
+    public function getImageUrlAttribute()
+    {
+        if (!$this->image) return null;
+        if (str_starts_with($this->image, 'http')) return $this->image;
+        return asset('storage/' . $this->image);
     }
 }

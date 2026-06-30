@@ -1,0 +1,74 @@
+﻿.lde-shell {
+    --lde-accent: #0f766e;
+    --lde-ink: #0f172a;
+    --lde-muted: #64748b;
+    --lde-panel: #ffffff;
+    --lde-line: #e2e8f0;
+}
+
+.lde-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 20px;
+}
+
+.lde-kicker {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.12);
+    color: var(--lde-accent);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.lde-title { margin: 10px 0 8px; font-size: 32px; color: var(--lde-ink); }
+.lde-subtitle { margin: 0; color: var(--lde-muted); max-width: 760px; }
+.lde-page-nav { display: flex; gap: 12px; flex-wrap: wrap; }
+.lde-nav-link {
+    display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
+    padding: 12px 16px; border-radius: 14px; background: #fff; border: 1px solid var(--lde-line); color: var(--lde-ink);
+}
+.lde-nav-link.active { background: linear-gradient(135deg, #0f766e, #14b8a6); color: #fff; border-color: transparent; }
+.lde-stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.lde-stat-card, .lde-panel { background: var(--lde-panel); border: 1px solid var(--lde-line); border-radius: 20px; padding: 22px; box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06); }
+.lde-stat-card span { display: block; color: var(--lde-muted); font-size: 13px; }
+.lde-stat-card strong { font-size: 28px; color: var(--lde-ink); }
+.lde-panel-head { display: flex; justify-content: space-between; align-items: start; margin-bottom: 18px; }
+.lde-panel-head h3 { margin: 0; font-size: 22px; color: var(--lde-ink); }
+.lde-panel-head p { margin: 6px 0 0; color: var(--lde-muted); }
+.lde-empty-box { border: 1px dashed var(--lde-line); border-radius: 16px; padding: 24px; color: var(--lde-muted); text-align: center; }
+.lde-session-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.lde-session-meta span, .lde-mini-stat span { display: block; color: var(--lde-muted); font-size: 13px; }
+.lde-session-meta strong, .lde-mini-stat strong { color: var(--lde-ink); font-size: 18px; }
+.lde-progress-bar { height: 18px; border-radius: 999px; overflow: hidden; background: #dbeafe; }
+.lde-progress-bar .progress-bar { background: linear-gradient(90deg, #0f766e, #14b8a6); }
+.lde-live-log-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.lde-live-log-list li { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 12px; border: 1px solid var(--lde-line); border-radius: 14px; }
+.lde-live-log-list p { margin: 4px 0 0; color: var(--lde-muted); }
+.lde-table th { text-transform: uppercase; font-size: 12px; letter-spacing: 0.06em; color: var(--lde-muted); }
+.lde-table td { vertical-align: middle; }
+.lde-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+.lde-result-card { background: #fff; border: 1px solid var(--lde-line); border-radius: 18px; padding: 18px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05); }
+.lde-result-card-top { display: flex; justify-content: space-between; gap: 16px; }
+.lde-result-card h3 { margin: 0; font-size: 20px; color: var(--lde-ink); }
+.lde-result-card p { margin: 8px 0 0; color: var(--lde-muted); }
+.lde-result-meta { display: flex; flex-wrap: wrap; gap: 14px; margin: 16px 0; color: var(--lde-muted); font-size: 14px; }
+.lde-result-links { display: flex; justify-content: space-between; align-items: center; }
+.lde-result-links a.disabled { pointer-events: none; opacity: 0.4; }
+.lde-review-card { border: 1px solid var(--lde-line); border-radius: 16px; padding: 16px; background: #f8fafc; }
+.lde-mini-stat { padding: 14px 0; border-bottom: 1px solid var(--lde-line); }
+.lde-mini-stat:last-child { border-bottom: 0; }
+.lde-session-list .lde-session-item.active { border-color: var(--lde-accent); background: rgba(20, 184, 166, 0.08); }
+@media (max-width: 991px) {
+    .lde-header { flex-direction: column; }
+    .lde-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lde-session-meta { grid-template-columns: 1fr; }
+}
+@media (max-width: 575px) {
+    .lde-stats-grid { grid-template-columns: 1fr; }
+}

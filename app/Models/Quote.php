@@ -12,7 +12,6 @@ class Quote extends Model
 
     protected $fillable = [
         'quote_number',
-        'etablissement_id',
         'client_id',
         'project_id',
         'quote_date',
@@ -49,14 +48,9 @@ class Quote extends Model
         'metadata' => 'array'
     ];
 
-    public function etablissement()
-    {
-        return $this->belongsTo(Etablissement::class);
-    }
-
     public function client()
     {
-        return $this->belongsTo(Customer::class, 'client_id');
+        return $this->belongsTo(Etablissement::class, 'client_id');
     }
 
     public function project()
@@ -76,12 +70,42 @@ class Quote extends Model
 
     public function getIsExpiredAttribute()
     {
-        return $this->valid_until < now();
+        return $this->valid_until
+            && !in_array($this->status, ['accepte', 'refuse', 'converti_en_facture', 'annule'], true)
+            && $this->valid_until->isPast();
     }
 
     public function getIsConvertibleAttribute()
     {
-        return $this->status === 'accepte' && !$this->invoice;
+        return in_array($this->status, ['accepte', 'envoye', 'en_attente'], true) && !$this->invoice;
+    }
+
+    public function getStatusLabelAttribute()
+    {
+        return [
+            'brouillon' => 'Brouillon',
+            'envoye' => 'EnvoyÃ©',
+            'en_attente' => 'En attente',
+            'accepte' => 'AcceptÃ©',
+            'refuse' => 'RefusÃ©',
+            'expire' => 'ExpirÃ©',
+            'converti_en_facture' => 'Converti en facture',
+            'annule' => 'AnnulÃ©',
+        ][$this->status] ?? ucfirst((string) $this->status);
+    }
+
+    public function getStatusBadgeAttribute()
+    {
+        return [
+            'brouillon' => 'secondary',
+            'envoye' => 'primary',
+            'en_attente' => 'warning',
+            'accepte' => 'success',
+            'refuse' => 'danger',
+            'expire' => 'dark',
+            'converti_en_facture' => 'info',
+            'annule' => 'dark',
+        ][$this->status] ?? 'secondary';
     }
 
     public function accept()
@@ -97,5 +121,49 @@ class Quote extends Model
         $this->rejected_date = now();
         $this->notes = $reason;
         $this->save();
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($quote) {
+            if (!$quote->quote_number) {
+                $quote->quote_number = static::nextQuoteNumber();
+            }
+        });
+
+        static::created(function ($quote) {
+            $settings = BillingSetting::first();
+            if (!$settings) {
+                $settings = BillingSetting::create([]);
+            }
+            $settings->update(['last_quote_number' => $quote->quote_number]);
+        });
+    }
+
+    protected static function nextQuoteNumber(): string
+    {
+        $settings = BillingSetting::first();
+        if (!$settings) {
+            $settings = BillingSetting::create([]);
+        }
+
+        $prefix = $settings->quote_prefix ?: 'D-';
+        $length = (int) ($settings->quote_number_length ?: 5);
+        $candidate = $settings->getNextQuoteNumber();
+        $next = ((int) substr($candidate, strlen($prefix))) + 1;
+
+        do {
+            $exists = static::withTrashed()->where('quote_number', $candidate)->exists();
+            if (!$exists) {
+                break;
+            }
+
+            $candidate = $prefix . str_pad((string) $next, $length, '0', STR_PAD_LEFT);
+            $next++;
+        } while (true);
+
+        return $candidate;
     }
 }

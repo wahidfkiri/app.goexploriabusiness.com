@@ -4,10 +4,10 @@ namespace Vendor\Ecommerce\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
-use App\Models\Invoice;
-use App\Models\Customer;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class PaymentController extends Controller
 {
@@ -16,48 +16,49 @@ class PaymentController extends Controller
      */
     public function index(Request $request)
     {
+        $etablissementId = auth()->user()->etablissement_id;
+
         if ($request->ajax()) {
-            $query = Payment::with(['client', 'invoice', 'receiver']);
-            
-            // Apply filters
+            $query = Payment::with(['client', 'invoice', 'receiver'])
+                ->where('etablissement_id', $etablissementId);
+
             if ($request->search) {
-                $query->where(function($q) use ($request) {
+                $query->where(function ($q) use ($request) {
                     $q->where('payment_reference', 'like', '%' . $request->search . '%')
-                      ->orWhere('transaction_id', 'like', '%' . $request->search . '%')
-                      ->orWhereHas('client', function($cq) use ($request) {
-                          $cq->where('name', 'like', '%' . $request->search . '%');
-                      });
+                        ->orWhere('transaction_id', 'like', '%' . $request->search . '%')
+                        ->orWhereHas('client', function ($cq) use ($request) {
+                            $cq->where('name', 'like', '%' . $request->search . '%');
+                        });
                 });
             }
-            
+
             if ($request->status) {
                 $query->where('status', $request->status);
             }
-            
+
             if ($request->method) {
                 $query->where('method', $request->method);
             }
-            
+
             if ($request->date_from) {
                 $query->whereDate('payment_date', '>=', $request->date_from);
             }
-            
+
             if ($request->date_to) {
                 $query->whereDate('payment_date', '<=', $request->date_to);
             }
-            
-            $payments = $query->orderBy('payment_date', 'desc')
-                ->paginate(15);
-            
+
+            $payments = $query->orderBy('payment_date', 'desc')->paginate(15);
+
             return response()->json([
                 'success' => true,
                 'data' => $payments->items(),
                 'current_page' => $payments->currentPage(),
                 'last_page' => $payments->lastPage(),
-                'total' => $payments->total()
+                'total' => $payments->total(),
             ]);
         }
-        
+
         return view('ecommerce::payments.index');
     }
 
@@ -67,48 +68,46 @@ class PaymentController extends Controller
     public function show($id)
     {
         try {
+            $etablissementId = auth()->user()->etablissement_id;
+
             $payment = Payment::with(['client', 'invoice', 'receiver', 'etablissement'])
+                ->where('etablissement_id', $etablissementId)
                 ->findOrFail($id);
 
-            // Get related payments for the same invoice
             $relatedPayments = collect();
             if ($payment->invoice_id) {
-                $relatedPayments = Payment::where('invoice_id', $payment->invoice_id)
+                $relatedPayments = Payment::where('etablissement_id', $etablissementId)
+                    ->where('invoice_id', $payment->invoice_id)
                     ->where('id', '!=', $payment->id)
                     ->orderBy('payment_date', 'desc')
                     ->get();
             }
 
-            // Get client payment history
-            $clientHistory = Payment::where('client_id', $payment->client_id)
+            $clientHistory = Payment::where('etablissement_id', $etablissementId)
+                ->where('client_id', $payment->client_id)
                 ->where('id', '!=', $payment->id)
                 ->orderBy('payment_date', 'desc')
                 ->limit(5)
                 ->get();
 
-            // Calculate statistics
             $stats = [
-                'total_paid' => Payment::where('client_id', $payment->client_id)
+                'total_paid' => Payment::where('etablissement_id', $etablissementId)
+                    ->where('client_id', $payment->client_id)
                     ->where('status', 'complete')
                     ->sum('amount'),
-                'payment_count' => Payment::where('client_id', $payment->client_id)
+                'payment_count' => Payment::where('etablissement_id', $etablissementId)
+                    ->where('client_id', $payment->client_id)
                     ->where('status', 'complete')
                     ->count(),
-                'average_payment' => Payment::where('client_id', $payment->client_id)
+                'average_payment' => Payment::where('etablissement_id', $etablissementId)
+                    ->where('client_id', $payment->client_id)
                     ->where('status', 'complete')
                     ->avg('amount'),
             ];
 
-            return view('ecommerce::payments.show', compact(
-                'payment', 
-                'relatedPayments', 
-                'clientHistory', 
-                'stats'
-            ));
-
+            return view('ecommerce::payments.show', compact('payment', 'relatedPayments', 'clientHistory', 'stats'));
         } catch (\Exception $e) {
-            return redirect()->route('payments.index')
-                ->with('error', 'Paiement non trouvé.');
+            return redirect()->route('payments.index')->with('error', 'Paiement non trouvé.');
         }
     }
 
@@ -118,33 +117,31 @@ class PaymentController extends Controller
     public function updateStatus(Request $request, $id)
     {
         try {
-            $payment = Payment::findOrFail($id);
+            $payment = Payment::where('etablissement_id', auth()->user()->etablissement_id)
+                ->findOrFail($id);
 
             $request->validate([
-                'status' => 'required|in:en_attente,complete,echoue,rembourse,partiel'
+                'status' => 'required|in:en_attente,complete,echoue,rembourse,partiel',
             ]);
 
-            $oldStatus = $payment->status;
             $payment->status = $request->status;
-            
+
             if ($request->status === 'complete' && $payment->invoice) {
-                // Update invoice paid amount
                 $invoice = $payment->invoice;
                 $invoice->paid_amount += $payment->amount;
                 $invoice->remaining_amount = $invoice->total - $invoice->paid_amount;
-                
+
                 if ($invoice->remaining_amount <= 0) {
                     $invoice->status = 'payee';
                     $invoice->payment_date = now();
                 } elseif ($invoice->paid_amount > 0) {
                     $invoice->status = 'partiellement_payee';
                 }
-                
+
                 $invoice->save();
             }
 
             if ($request->status === 'rembourse' && $payment->invoice) {
-                // Reverse payment
                 $invoice = $payment->invoice;
                 $invoice->paid_amount -= $payment->amount;
                 $invoice->remaining_amount = $invoice->total - $invoice->paid_amount;
@@ -153,16 +150,14 @@ class PaymentController extends Controller
 
             $payment->save();
 
-
             return response()->json([
                 'success' => true,
-                'message' => 'Statut mis à jour avec succès !'
+                'message' => 'Statut mis à jour avec succès !',
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
+                'message' => 'Erreur: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -172,29 +167,29 @@ class PaymentController extends Controller
      */
     public function addNote(Request $request, $id)
     {
-            try {
-                $payment = Payment::findOrFail($id);
+        try {
+            $payment = Payment::where('etablissement_id', auth()->user()->etablissement_id)
+                ->findOrFail($id);
 
             $request->validate([
-                'note' => 'required|string'
+                'note' => 'required|string',
             ]);
 
-            $payment->notes = $payment->notes 
+            $payment->notes = $payment->notes
                 ? $payment->notes . "\n\n[" . now()->format('d/m/Y H:i') . "] " . $request->note
                 : "[" . now()->format('d/m/Y H:i') . "] " . $request->note;
-            
+
             $payment->save();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Note ajoutée avec succès !',
-                'note' => $payment->notes
+                'note' => $payment->notes,
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
+                'message' => 'Erreur: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -205,16 +200,14 @@ class PaymentController extends Controller
     public function downloadReceipt($id)
     {
         try {
-                $payment = Payment::findOrFail($id);
+            $payment = Payment::where('etablissement_id', auth()->user()->etablissement_id)
+                ->findOrFail($id);
 
-            // Generate PDF receipt
-            $pdf = \PDF::loadView('ecommerce::payments.receipt', compact('payment'));
-            
+            $pdf = Pdf::loadView('ecommerce::payments.receipt', compact('payment'));
+
             return $pdf->download('recu-' . $payment->payment_reference . '.pdf');
-
         } catch (\Exception $e) {
-            return redirect()->back()
-                ->with('error', 'Erreur lors du téléchargement du reçu.');
+            return redirect()->back()->with('error', 'Erreur lors du téléchargement du reçu.');
         }
     }
 
@@ -225,72 +218,78 @@ class PaymentController extends Controller
     {
         try {
             $payment = Payment::with('client')
+                ->where('etablissement_id', auth()->user()->etablissement_id)
                 ->findOrFail($id);
 
-            // Send email with receipt
-            \Mail::to($payment->client->email)->send(new \Vendor\Ecommerce\Mail\PaymentReceipt($payment));
+            $pdf = Pdf::loadView('ecommerce::payments.receipt', compact('payment'));
+
+            Mail::send('ecommerce::emails.payment-receipt', compact('payment'), function ($message) use ($payment, $pdf) {
+                $message->to($payment->client->email)
+                    ->subject('Reçu de paiement ' . $payment->payment_reference)
+                    ->attachData($pdf->output(), 'recu-' . $payment->payment_reference . '.pdf', [
+                        'mime' => 'application/pdf',
+                    ]);
+            });
 
             return response()->json([
                 'success' => true,
-                'message' => 'Reçu envoyé par email avec succès !'
+                'message' => 'Reçu envoyé par email avec succès !',
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
+                'message' => 'Erreur: ' . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
- * Get payments statistics.
- */
-public function statistics()
-{
-    try {
-        $etablissementId = auth()->user()->etablissement_id;
-        
-        $stats = [
-            'total' => Payment::count(),
-            'total_amount' => Payment::where('status', 'complete')->sum('amount'),
-            'completed' => Payment::where('status', 'complete')->count(),
-            'pending' => Payment::where('status', 'en_attente')->count(),
-            'average' => Payment::where('status', 'complete')->avg('amount'),
-            'by_method' => DB::table('payments')
-                ->select('method', DB::raw('count(*) as total'), DB::raw('sum(amount) as amount'))
-                ->groupBy('method')
-                ->get(),
-            'top_clients' => DB::table('payments')
-                ->join('customers', 'payments.client_id', '=', 'customers.id')
-                ->select('customers.nom as client_name', DB::raw('sum(amount) as total'))
-                ->where('payments.status', 'complete')
-                ->groupBy('customers.id', 'customers.nom')
-                ->orderBy('total', 'desc')
-                ->limit(5)
-                ->get(),
-            'monthly' => DB::table('payments')
-                ->select(
-                    DB::raw("DATE_FORMAT(payment_date, '%Y-%m') as month"),
-                    DB::raw('sum(amount) as amount')
-                )
-                ->where('status', 'complete')
-                ->groupBy(DB::raw("DATE_FORMAT(payment_date, '%Y-%m')"))
-                ->orderBy('month', 'desc')
-                ->limit(6)
-                ->get()
-        ];
-        
-        return response()->json([
-            'success' => true,
-            'data' => $stats
-        ]);
-        
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur: ' . $e->getMessage()
-        ], 500);
+     * Get payments statistics.
+     */
+    public function statistics()
+    {
+        try {
+            $etablissementId = auth()->user()->etablissement_id;
+
+            $stats = [
+                'total' => Payment::where('etablissement_id', $etablissementId)->count(),
+                'total_amount' => Payment::where('etablissement_id', $etablissementId)->where('status', 'complete')->sum('amount'),
+                'completed' => Payment::where('etablissement_id', $etablissementId)->where('status', 'complete')->count(),
+                'pending' => Payment::where('etablissement_id', $etablissementId)->where('status', 'en_attente')->count(),
+                'average' => Payment::where('etablissement_id', $etablissementId)->where('status', 'complete')->avg('amount'),
+                'by_method' => DB::table('payments')
+                    ->where('etablissement_id', $etablissementId)
+                    ->select('method', DB::raw('count(*) as total'), DB::raw('sum(amount) as amount'))
+                    ->groupBy('method')
+                    ->get(),
+                'top_clients' => DB::table('payments')
+                    ->join('customers', 'payments.client_id', '=', 'customers.id')
+                    ->where('payments.etablissement_id', $etablissementId)
+                    ->where('payments.status', 'complete')
+                    ->select('customers.nom as client_name', DB::raw('sum(amount) as total'))
+                    ->groupBy('customers.id', 'customers.nom')
+                    ->orderBy('total', 'desc')
+                    ->limit(5)
+                    ->get(),
+                'monthly' => DB::table('payments')
+                    ->where('etablissement_id', $etablissementId)
+                    ->where('status', 'complete')
+                    ->select(DB::raw("DATE_FORMAT(payment_date, '%Y-%m') as month"), DB::raw('sum(amount) as amount'))
+                    ->groupBy(DB::raw("DATE_FORMAT(payment_date, '%Y-%m')"))
+                    ->orderBy('month', 'desc')
+                    ->limit(6)
+                    ->get(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage(),
+            ], 500);
+        }
     }
-}
 }

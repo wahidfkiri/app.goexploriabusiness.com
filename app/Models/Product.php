@@ -117,6 +117,11 @@ class Product extends Model
         return $this->hasMany(QuoteLine::class);
     }
 
+    public function onlineOrderItems()
+    {
+        return $this->hasMany(OnlineOrderItem::class, 'product_id');
+    }
+
     public function tax()
     {
         return $this->belongsTo(Tax::class, 'tax_rate', 'rate');

@@ -30,6 +30,16 @@ class AjaxAuthController extends Controller
             ], 422);
         }
 
+        $user = User::where('email', $request->email)->first();
+
+        if ($user && !$user->hasVerifiedEmail()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Veuillez vérifier votre adresse email avant de vous connecter.',
+                'needs_verification' => true,
+            ], 403);
+        }
+
         $credentials = $request->only('email', 'password');
         $remember = $request->has('remember');
 

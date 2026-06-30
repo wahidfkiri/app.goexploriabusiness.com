@@ -58,6 +58,21 @@ return [
             'ignore_exceptions' => false,
         ],
 
+        'slider_debug' => [
+        'driver' => 'single',
+        'path' => storage_path('logs/slider_debug.log'),
+        'level' => 'debug',
+        'permission' => 0664,
+    ],
+
+    
+        'cdn' => [
+        'driver' => 'single',
+        'path' => storage_path('logs/cdn.log'),
+        'level' => 'debug',
+        'permission' => 0664,
+    ],
+
         'single' => [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),
@@ -126,6 +141,14 @@ return [
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],
+
+        'theme_cdn' => [
+        'driver' => 'daily',
+        'path' => storage_path('logs/theme-cdn.log'),
+        'level' => env('LOG_LEVEL', 'debug'),
+        'days' => 14,
+    ],
+
 
     ],
 

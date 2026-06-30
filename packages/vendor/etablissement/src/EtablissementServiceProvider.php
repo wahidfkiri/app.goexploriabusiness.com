@@ -3,29 +3,22 @@
 namespace Vendor\Etablissement;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Blade;
-// use Vendor\Storage\Components\GoogleDrive\MainApp;
 
 class EtablissementServiceProvider extends ServiceProvider
 {
-    public function boot()
+    public function boot(): void
     {
-        // Load routes
-        $this->loadRoutesFrom(__DIR__.'/routes/web.php');
+        $this->loadRoutesFrom(__DIR__ . '/routes/web.php');
+        $this->loadViewsFrom(__DIR__ . '/Views', 'etablissement');
+        $this->loadMigrationsFrom(__DIR__ . '/database/migrations');
 
-        // Load views
-        $this->loadViewsFrom(__DIR__.'/Views', 'etablissement');
-
-        // Blade::component('drive-google-drive-main-app', MainApp::class);
-
-        // Publish assets if needed
         $this->publishes([
-            __DIR__.'/../resources/assets' => public_path('vendor/etablissement'),
+            __DIR__ . '/../resources/assets' => public_path('vendor/etablissement'),
         ], 'etablissement-assets');
     }
 
-    public function register()
+    public function register(): void
     {
-        // Register package services
+        // Register package services here when needed.
     }
 }

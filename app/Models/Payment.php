@@ -14,6 +14,7 @@ class Payment extends Model
         'payment_reference',
         'etablissement_id',
         'invoice_id',
+        'online_order_id',
         'client_id',
         'payment_date',
         'amount',
@@ -41,6 +42,11 @@ class Payment extends Model
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function onlineOrder()
+    {
+        return $this->belongsTo(OnlineOrder::class, 'online_order_id');
     }
 
     public function client()

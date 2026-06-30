@@ -3,25 +3,11 @@
 <header id="header" data-transparent="true" data-fullwidth="true" class="dark submenu-light">
     <div class="header-inner">
         <div class="container">
-            <!--Logo avec texte qui change-->
-            <div id="logo" style="position: relative; display: inline-block;top:30px;">
+            <!--Logo-->
+            <div id="logo" style="position: relative; display: inline-block;">
                 <a href="{{url('/')}}">
                     <img src="{{ asset('logo.png') }}" class="d-block">
                 </a>
-                <!-- Texte qui change en bas à droite -->
-                <div id="logo-text" style="
-                    position: absolute;
-                    top: 20px;
-                    right: 5px;
-                    font-weight: bold;
-                    font-style: italic;
-                    font-size: 15px;
-                    color: red;
-                    /* background: rgba(0,0,0,0.7); */
-                    padding: 2px 6px;
-                    border-radius: 3px;
-                    white-space: nowrap;
-                ">{{\App\Models\Menu::firstOrFail()->title}}</div>
             </div>
             <!--End: Logo-->
             
@@ -472,26 +458,7 @@
 <script src="front/js/jquery.js"></script>
 <script src="front/js/functions.js"></script>
 
-<!-- Script pour faire changer le texte automatiquement -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const logoText = document.getElementById('logo-text');
-    const texts = [
-        <?php $menus = \App\Models\Menu::where('is_active', 1)->get();
-        foreach($menus as $menu) {
-            echo "'" . addslashes($menu->title) . "',";
-        }
-        ?>
-    ];
-    let currentIndex = 0;
-    
-    // Changer le texte toutes les 3 secondes
-    setInterval(() => {
-        currentIndex = (currentIndex + 1) % texts.length;
-        logoText.textContent = texts[currentIndex];
-    }, 3000);
-});
-</script>
+
 
 <!-- Optionnel: Si vous voulez garder la structure pour l'instant -->
 <!-- <script src="front/js/plugins.js"></script> -->

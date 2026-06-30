@@ -7,12 +7,25 @@ use Vendor\Administration\Controllers\MenuPageController;
 use Vendor\Administration\Controllers\PublicPageController;
 use Vendor\Administration\Controllers\BlockController;
 use Vendor\Administration\Controllers\TemplateController;
+use Vendor\Administration\Controllers\LocationController;
+use Vendor\Administration\Controllers\PlanController;
+use Vendor\Administration\Controllers\PlanServiceController;
+use Vendor\Administration\Controllers\AbonnementController;
 
 
 
 Auth::routes();
 
 Route::middleware(['auth','web'])->group(function () {
+
+
+Route::prefix('api/locations')->group(function () {
+    Route::get('/countries', [LocationController::class, 'getCountries']);
+    Route::get('/countries/{countryId}/provinces', [LocationController::class, 'getProvinces']);
+    Route::get('/provinces/{provinceId}/regions', [LocationController::class, 'getRegions']);
+    Route::get('/regions/{regionId}/villes', [LocationController::class, 'getVilles']);
+    Route::get('/search', [LocationController::class, 'search']);
+});
 // Routes pour les sliders
 Route::prefix('sliders')->group(function () {
     Route::get('/', [SliderController::class, 'index'])->name('sliders.index');
@@ -22,11 +35,9 @@ Route::prefix('sliders')->group(function () {
     Route::delete('/{id}', [SliderController::class, 'destroy'])->name('sliders.destroy');
     
     // Routes supplémentaires
-    Route::post('/{id}/restore', [SliderController::class, 'restore'])->name('sliders.restore');
-    Route::delete('/{id}/force-delete', [SliderController::class, 'forceDelete'])->name('sliders.force-delete');
     Route::post('/{id}/toggle-status', [SliderController::class, 'toggleStatus'])->name('sliders.toggle-status');
     Route::post('/update-order', [SliderController::class, 'updateOrder'])->name('sliders.update-order');
-    Route::get('/statistics', [SliderController::class, 'statistics'])->name('sliders.statistics');
+    Route::get('/statistics/data', [SliderController::class, 'statistics'])->name('sliders.statistics');
     Route::get('/{id}/preview', [SliderController::class, 'preview'])->name('sliders.preview');
 });
 
@@ -73,6 +84,53 @@ Route::prefix('sliders')->group(function () {
     });
 
 
+
+// Plans routes
+Route::prefix('admin')->middleware(['auth'])->group(function () {
+    Route::resource('plans', PlanController::class);
+    Route::post('/plans/{id}/toggle-status', [PlanController::class, 'toggleStatus'])->name('plans.toggle-status');
+    Route::post('/plans/reorder', [PlanController::class, 'reorder'])->name('plans.reorder');
+    Route::get('/plan-services', [PlanServiceController::class, 'index'])->name('plan-services.index');
+    Route::get('/plan-services/create', [PlanServiceController::class, 'create'])->name('plan-services.create');
+    Route::post('/plan-services', [PlanServiceController::class, 'store'])->name('plan-services.store');
+    Route::get('/plan-services/{id}/edit', [PlanServiceController::class, 'edit'])->name('plan-services.edit');
+    Route::put('/plan-services/{id}', [PlanServiceController::class, 'update'])->name('plan-services.update');
+    Route::delete('/plan-services/{id}', [PlanServiceController::class, 'destroy'])->name('plan-services.destroy');
+
+
+// Plan media management
+Route::delete('/plans/{planId}/media/{mediaId}', [PlanController::class, 'deleteMedia'])->name('plans.media.delete');
+Route::post('/plans/{planId}/media/{mediaId}/primary', [PlanController::class, 'setPrimaryMedia'])->name('plans.media.primary');
+
+// Plan destinations management
+Route::prefix('plans/{planId}/destinations')->group(function () {
+    Route::get('/', [PlanController::class, 'getDestinations'])->name('plans.destinations.index');
+    Route::post('/', [PlanController::class, 'storeDestination'])->name('plans.destinations.store');
+    Route::put('/{destinationId}', [PlanController::class, 'updateDestination'])->name('plans.destinations.update');
+    Route::delete('/{destinationId}', [PlanController::class, 'deleteDestination'])->name('plans.destinations.delete');
+    Route::post('/reorder', [PlanController::class, 'reorderDestinations'])->name('plans.destinations.reorder');
+});
+ 
+    // Plan media management (AJAX endpoints called from edit page)
+    Route::delete('/plans/{planId}/media/{mediaId}',   [PlanController::class, 'deleteMedia'])->name('plans.media.delete');
+    Route::post('/plans/{planId}/media/{mediaId}/primary', [PlanController::class, 'setPrimaryMedia'])->name('plans.media.primary');
+    
+    // Abonnements routes - Ordre important ! Les routes spécifiques doivent venir avant resource
+    Route::get('/abonnements/export', [AbonnementController::class, 'export'])->name('abonnements.export');
+    Route::get('/abonnements/export-etablissements', [AbonnementController::class, 'exportEtablissements'])->name('abonnements.export-etablissements');
+    Route::get('/abonnements/etablissements', [AbonnementController::class, 'etablissements'])->name('abonnements.etablissements');
+    Route::get('/abonnements/historique/{id}', [AbonnementController::class, 'historique'])->name('abonnements.historique');
+    Route::post('/abonnements/{id}/cancel', [AbonnementController::class, 'cancel'])->name('abonnements.cancel');
+    Route::post('/abonnements/{id}/renew', [AbonnementController::class, 'renew'])->name('abonnements.renew');
+    Route::get('/abonnements/{id}/print', [AbonnementController::class, 'print'])->name('abonnements.print');
+    
+    // Resource doit être après les routes spécifiques
+    Route::resource('abonnements', AbonnementController::class);
+
+    
+});
+
+
 // Route publique pour afficher les pages
 Route::get('/pages/{slug}', [PublicPageController::class, 'show'])->name('pages.show');
 Route::get('/menu/{menu}/page', [PublicPageController::class, 'showByMenu'])->name('menu.page.show');
@@ -99,3 +157,4 @@ Route::get('/menus/template/view/{id}', function ($id) {
         'meta' => $menu->page_meta,
     ]);
 })->name('menus.template.view');
+

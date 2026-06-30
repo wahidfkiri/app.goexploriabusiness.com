@@ -1,0 +1,26 @@
+{
+  "name": "vendor/maps-data-engine",
+  "description": "Hybrid Laravel + Playwright Google Maps scraping engine for business and location data",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Vendor\\MapsDataEngine\\": "src/"
+    }
+  },
+  "require": {
+    "php": "^8.3",
+    "illuminate/contracts": "^11.0",
+    "illuminate/support": "^11.0",
+    "illuminate/http": "^11.0",
+    "illuminate/queue": "^11.0",
+    "illuminate/database": "^11.0"
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Vendor\\MapsDataEngine\\Providers\\MapsDataEngineServiceProvider"
+      ]
+    }
+  }
+}

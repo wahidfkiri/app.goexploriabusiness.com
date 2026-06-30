@@ -12,7 +12,6 @@ class Invoice extends Model
 
     protected $fillable = [
         'invoice_number',
-        'etablissement_id',
         'client_id',
         'project_id',
         'quote_id',
@@ -34,6 +33,8 @@ class Invoice extends Model
         'payment_method',
         'payment_details',
         'client_name',
+        'client_email',
+        'client_phone',
         'client_address',
         'client_zipcode',
         'client_city',
@@ -62,14 +63,9 @@ class Invoice extends Model
         'metadata' => 'array'
     ];
 
-    public function etablissement()
-    {
-        return $this->belongsTo(Etablissement::class);
-    }
-
     public function client()
     {
-        return $this->belongsTo(Customer::class, 'client_id');
+        return $this->belongsTo(Etablissement::class, 'client_id');
     }
 
     public function project()
@@ -104,35 +100,90 @@ class Invoice extends Model
 
     public function getIsOverdueAttribute()
     {
-        return !$this->is_paid && $this->due_date < now();
+        return $this->due_date
+            && !$this->is_paid
+            && !in_array($this->status, ['payee', 'annulee', 'avoir'], true)
+            && $this->due_date->isPast();
+    }
+
+    public function getStatusLabelAttribute()
+    {
+        return [
+            'brouillon' => 'Brouillon',
+            'envoyee' => 'EnvoyÃ©e',
+            'en_attente' => 'En attente',
+            'payee' => 'PayÃ©e',
+            'partiellement_payee' => 'Partiellement payÃ©e',
+            'en_retard' => 'En retard',
+            'annulee' => 'AnnulÃ©e',
+            'avoir' => 'Avoir',
+        ][$this->status] ?? ucfirst((string) $this->status);
+    }
+
+    public function getStatusBadgeAttribute()
+    {
+        return [
+            'brouillon' => 'secondary',
+            'envoyee' => 'primary',
+            'en_attente' => 'warning',
+            'payee' => 'success',
+            'partiellement_payee' => 'info',
+            'en_retard' => 'danger',
+            'annulee' => 'dark',
+            'avoir' => 'light',
+        ][$this->status] ?? 'secondary';
     }
 
     public function updatePaidAmount()
     {
         $this->paid_amount = $this->payments()->where('status', 'complete')->sum('amount');
         $this->remaining_amount = $this->total - $this->paid_amount;
-        
+
         if ($this->remaining_amount <= 0) {
             $this->status = 'payee';
             $this->payment_date = now();
         } elseif ($this->paid_amount > 0) {
             $this->status = 'partiellement_payee';
         }
-        
+
         $this->save();
     }
 
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($invoice) {
             if (!$invoice->invoice_number) {
-                $billingSettings = BillingSetting::where('etablissement_id', $invoice->etablissement_id)->first();
-                if ($billingSettings) {
-                    $invoice->invoice_number = $billingSettings->getNextInvoiceNumber();
-                }
+                $invoice->invoice_number = static::nextInvoiceNumber();
             }
         });
+
+        static::created(function ($invoice) {
+            $settings = BillingSetting::first();
+            if (!$settings) {
+                $settings = BillingSetting::create([]);
+            }
+            $settings->update(['last_invoice_number' => $invoice->invoice_number]);
+        });
+    }
+
+    protected static function nextInvoiceNumber(): string
+    {
+        $settings = BillingSetting::first();
+        if (!$settings) {
+            $settings = BillingSetting::create([]);
+        }
+
+        $candidate = $settings->getNextInvoiceNumber();
+        $prefix = $settings->invoice_prefix ?: 'F-';
+        $length = (int) ($settings->invoice_number_length ?: 5);
+
+        while (static::withTrashed()->where('invoice_number', $candidate)->exists()) {
+            $number = (int) substr($candidate, strlen($prefix));
+            $candidate = $prefix . str_pad((string) ($number + 1), $length, '0', STR_PAD_LEFT);
+        }
+
+        return $candidate;
     }
 }

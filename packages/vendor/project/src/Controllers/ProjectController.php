@@ -70,6 +70,11 @@ class ProjectController extends Controller
                     $q->select('id', 'project_id', 'status', 'estimated_hours', 'estimated_cost');
                 }
             ]);
+            if (!auth()->user() || !auth()->user()->hasRole('super-admin')) 
+                {
+                $query->where('user_id', Auth::id());
+                }
+            // ->where('user_id', Auth::id());
             // ->where('etablissement_id', Auth::user()->etablissement_id);
             
             // Apply search
@@ -637,7 +642,7 @@ public function store(Request $request)
             'tasks' => function($query) {
                 $query->with(['user', 'creator', 'comments' => function($q) {
                     $q->latest()->limit(5);
-                }])->orderBy('due_date');
+                }])->where('user_id', Auth::id())->orderBy('due_date');
             }
         ]);
         
@@ -653,7 +658,11 @@ public function store(Request $request)
         ];
         
         // Tâches récentes
-        $recentTasks = $project->tasks()->with('user')->latest()->limit(5)->get();
+        if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('super-admin')){
+        $recentTasks = $project->tasks()->with('user')->latest()->get();
+        }else{
+        $recentTasks = $project->tasks()->with('user')->latest()->where('user_id', Auth::id())->get();
+        }
         
         // Timeline des activités
         $activities = $project->latest()->limit(10)->get();
@@ -1036,7 +1045,7 @@ public function store(Request $request)
       //  $this->authorize('view', $project);
         
         $tasks = $project->tasks()
-            ->with(['user', 'creator'])
+            ->with(['user'])
             ->when($request->status, function($query, $status) {
                 return $query->where('status', $status);
             })
@@ -1053,7 +1062,7 @@ public function store(Request $request)
             ]);
         }
         
-        return view('projects.tasks', compact('project', 'tasks'));
+        return view('project::projects.tasks.index', compact('project', 'tasks'));
     }
 
     /**

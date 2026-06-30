@@ -1,0 +1,283 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use Vendor\Cms\Controllers\Web\PublicPageController;
+use Vendor\Cms\Controllers\Web\WebThemeController;
+use Vendor\Cms\Controllers\Admin\PageController;
+use Vendor\Cms\Controllers\Admin\SettingController as AdminSettingController;
+use Vendor\Cms\Controllers\Admin\DashboardController;
+use Vendor\Cms\Controllers\Admin\MediaController;
+use Vendor\Cms\Controllers\Admin\ContactMessageController;
+use Vendor\Cms\Controllers\Admin\SliderController;
+use Vendor\Cms\Controllers\Admin\SlideshowController;
+use Vendor\Cms\Controllers\Admin\MapVideoController;
+use Vendor\Cms\Controllers\Admin\HeaderFooterController;
+use Vendor\Cms\Controllers\Admin\BlogController;
+use Vendor\Cms\Controllers\Web\PublicBlogController;
+use Illuminate\Support\Facades\Auth;
+
+/*
+|--------------------------------------------------------------------------
+| Routes publiques (frontend)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['web'])->group(function () {
+
+    Route::prefix('/company/{etablissementId}')->name('cms.company.')->group(function () {
+
+        Route::get('/', [WebThemeController::class, 'home'])->name('home');
+        Route::get('/page/{slug}', [WebThemeController::class, 'showPage'])->name('page');
+        Route::get('/sitemap.xml', [WebThemeController::class, 'sitemap'])->name('sitemap');
+        Route::get('/robots.txt', [WebThemeController::class, 'robots'])->name('robots');
+
+        Route::get('/preview/theme/{id}', [WebThemeController::class, 'publicPreview'])->name('preview.theme');
+        Route::get('/preview/theme/{themeId}/page/{pageId}', [WebThemeController::class, 'previewPage'])->name('preview.page');
+        Route::get('/preview/theme/{id}/quick', [WebThemeController::class, 'quickPreview'])->name('preview.quick');
+
+        // Blog public
+        Route::get('/blog', [PublicBlogController::class, 'index'])->name('blog.index');
+        Route::get('/blog/{slug}', [PublicBlogController::class, 'show'])->name('blog.show');
+
+        Route::get('/api/pages', [PublicPageController::class, 'getPages'])->name('api.pages');
+        Route::get('/api/pages/{slug}', [PublicPageController::class, 'getPageBySlug'])->name('api.page');
+        Route::get('/search', [PublicPageController::class, 'search'])->name('search');
+        Route::get('/search/ajax', [PublicPageController::class, 'searchAjax'])->name('search.ajax');
+        Route::get('/contact', [PublicPageController::class, 'contact'])->name('contact');
+        Route::post('/contact/send', [PublicPageController::class, 'sendContact'])->name('contact.send');
+        Route::post('/newsletter/subscribe', [PublicPageController::class, 'subscribeNewsletter'])->name('newsletter.subscribe');
+        Route::get('/newsletter/unsubscribe/{token}', [PublicPageController::class, 'unsubscribeNewsletter'])->name('newsletter.unsubscribe');
+        Route::post('/page/check-password', [PublicPageController::class, 'checkPassword'])->name('page.check-password');
+        Route::get('/clear-preview', [WebThemeController::class, 'clearPreview'])->name('clear-preview');
+        Route::get('/{siteSlug}', [WebThemeController::class, 'homeWithSiteSlug'])
+            ->where('siteSlug', '[A-Za-z0-9\-]+')
+            ->name('home.slug');
+    });
+
+    Route::get('/themes/{etablissementId}/{themeSlug}/assets/{path}', [WebThemeController::class, 'asset'])
+        ->where('path', '.*')
+        ->name('cms.theme.asset');
+
+
+    
+// Routes publiques pour robots et sitemap
+Route::get('/company/{etablissementSlug}/robots.txt', [SettingController::class, 'robots']);
+Route::get('/company/{etablissementSlug}/sitemap.xml', [SettingController::class, 'sitemap']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Routes administrateur (backend)
+|--------------------------------------------------------------------------
+*/
+Auth::routes();
+
+Route::middleware(['web', 'auth'])->group(function () {
+
+    // ------------------------------------------------------------------
+    // API pages (hors préfixe établissement)
+    // ------------------------------------------------------------------
+    Route::prefix('admin/cms/api/pages')->name('cms.admin.')->group(function () {
+        Route::get('/{id}/load', [PageController::class, 'loadPageContent'])->name('pages.load');
+        Route::put('/{id}', [PageController::class, 'updatePageContent']);
+    });
+
+    Route::prefix('admin/cms/api/{etablissementId}/header-footer')->name('cms.admin.header-footer.api.')->group(function () {
+        Route::get('/{type}/load', [HeaderFooterController::class, 'load'])->name('load');
+        Route::put('/{type}', [HeaderFooterController::class, 'save'])->name('save');
+    });
+
+    // ==================================================================
+    // ROUTES PAR ÉTABLISSEMENT
+    // URL: admin/cms/{etablissementId}/*
+    // ==================================================================
+    Route::prefix('admin/cms/{etablissementId}')->name('cms.admin.')->group(function () {
+
+        // Routes SEO
+        Route::prefix('/seo')->name('seo.')->group(function () {
+            Route::get('/', [AdminSettingController::class, 'getSeoSettings'])->name('get');
+            Route::post('/preview', [AdminSettingController::class, 'previewSeo'])->name('preview');
+        });
+
+
+        // Dashboard
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.legacy');
+        Route::get('/{slug}/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
+        Route::get('/api/ecommerce/products', [DashboardController::class, 'ecommerceProducts'])->name('dashboard.ecommerce.products');
+        Route::get('/api/ecommerce/orders', [DashboardController::class, 'ecommerceOrders'])->name('dashboard.ecommerce.orders');
+        Route::post('/api/ecommerce/orders/{invoiceId}/mark-paid', [DashboardController::class, 'ecommerceMarkOrderPaid'])->name('dashboard.ecommerce.orders.mark-paid');
+
+        // Settings
+        Route::prefix('/settings')->name('settings.')->group(function () {
+            Route::get('/', [AdminSettingController::class, 'index'])->name('index');
+            Route::post('/', [AdminSettingController::class, 'update'])->name('update');
+            Route::get('/locations/{level}', [AdminSettingController::class, 'locations'])->name('locations');
+            Route::get('/{group}', [AdminSettingController::class, 'group'])->name('group');
+            Route::post('/bulk', [AdminSettingController::class, 'bulkUpdate'])->name('bulk');
+            Route::post('/reset', [AdminSettingController::class, 'reset'])->name('reset');
+
+            // Nouvelles routes pour les fichiers
+            Route::post('/upload', [AdminSettingController::class, 'uploadFile'])->name('upload');
+            Route::post('/remove-file', [AdminSettingController::class, 'removeFile'])->name('remove-file');
+        });
+
+        // Dans le groupe des routes admin/cms/{etablissementId}
+        Route::prefix('/api/slider')->name('slider.')->group(function () {
+            Route::get('/', [SliderController::class, 'index'])->name('index');
+            Route::post('/', [SliderController::class, 'store'])->name('store');
+            Route::put('/{id}', [SliderController::class, 'update'])->name('update');
+            Route::delete('/{id}', [SliderController::class, 'destroy'])->name('destroy');
+            Route::post('/reorder', [SliderController::class, 'reorder'])->name('reorder');
+            Route::post('/{id}/toggle', [SliderController::class, 'toggleActive'])->name('toggle');
+        });
+
+        Route::prefix('/api/slideshow')->name('slideshow.')->group(function () {
+            Route::get('/', [SlideshowController::class, 'index'])->name('index');
+            Route::post('/', [SlideshowController::class, 'store'])->name('store');
+            Route::put('/{id}', [SlideshowController::class, 'update'])->name('update');
+            Route::delete('/{id}', [SlideshowController::class, 'destroy'])->name('destroy');
+            Route::post('/reorder', [SlideshowController::class, 'reorderItems'])->name('reorder');
+            Route::post('/{id}/toggle', [SlideshowController::class, 'toggle'])->name('toggle');
+        });
+
+        Route::prefix('/api/map-videos')->name('map-videos.')->group(function () {
+            Route::get('/', [MapVideoController::class, 'index'])->name('index');
+            Route::post('/', [MapVideoController::class, 'store'])->name('store');
+            Route::put('/{id}', [MapVideoController::class, 'update'])->name('update');
+            Route::delete('/{id}', [MapVideoController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/toggle', [MapVideoController::class, 'toggle'])->name('toggle');
+        });
+
+        // Pages
+        Route::prefix('/pages')->name('pages.')->group(function () {
+            Route::get('/', [PageController::class, 'index'])->name('index');
+            Route::get('/create', [PageController::class, 'create'])->name('create');
+            Route::post('/', [PageController::class, 'store'])->name('store');
+            Route::get('/{id}', [PageController::class, 'show'])->name('show');
+            Route::get('/{id}/edit', [PageController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [PageController::class, 'update'])->name('update');
+            Route::delete('/{id}', [PageController::class, 'destroy'])->name('destroy');
+
+            Route::post('/{id}/publish', [PageController::class, 'publish'])->name('publish');
+            Route::post('/{id}/unpublish', [PageController::class, 'unpublish'])->name('unpublish');
+            Route::post('/{id}/duplicate', [PageController::class, 'duplicate'])->name('duplicate');
+            Route::post('/{id}/save-content', [PageController::class, 'saveContent'])->name('save-content');
+            Route::get('/{id}/preview', [PageController::class, 'preview'])->name('preview');
+            Route::post('/{id}/set-as-home', [PageController::class, 'setAsHome'])->name('set-as-home');
+
+            Route::post('/bulk/delete', [PageController::class, 'bulkDelete'])->name('bulk-delete');
+            Route::post('/bulk/status', [PageController::class, 'bulkUpdateStatus'])->name('bulk-status');
+            Route::get('/export', [PageController::class, 'export'])->name('export');
+            Route::get('/data/all', [PageController::class, 'getAllData'])->name('data');
+            Route::get('/data/{id}', [PageController::class, 'getData'])->name('data.single');
+
+            Route::post('/{id}/restore', [PageController::class, 'restore'])->name('restore');
+            Route::delete('/{id}/force', [PageController::class, 'forceDelete'])->name('force-delete');
+            Route::post('/reorder', [PageController::class, 'reorder'])->name('reorder');
+            Route::get('/{id}/edit-content', [PageController::class, 'editContent'])->name('edit-content');
+            Route::put('/{id}/update-content', [PageController::class, 'updateContent'])->name('update-content');
+        });
+
+        Route::prefix('/header-footer')->name('header-footer.')->group(function () {
+            Route::get('/{type}/edit', [HeaderFooterController::class, 'edit'])->name('edit');
+        });
+
+        // Blogs
+        Route::prefix('/blogs')->name('blogs.')->group(function () {
+            Route::get('/', [BlogController::class, 'index'])->name('index');
+            Route::get('/create', [BlogController::class, 'create'])->name('create');
+            Route::post('/ai/generate', [BlogController::class, 'generateAiContent'])->name('ai.generate');
+            Route::post('/', [BlogController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [BlogController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [BlogController::class, 'update'])->name('update');
+            Route::delete('/{id}', [BlogController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/publish', [BlogController::class, 'publish'])->name('publish');
+            Route::post('/{id}/unpublish', [BlogController::class, 'unpublish'])->name('unpublish');
+        });
+
+        // Messages du formulaire de contact
+        Route::prefix('/contact-messages')->name('contact-messages.')->group(function () {
+            Route::get('/', [ContactMessageController::class, 'index'])->name('index');
+            Route::post('/bulk', [ContactMessageController::class, 'bulkUpdate'])->name('bulk');
+            Route::get('/{id}', [ContactMessageController::class, 'show'])->name('show');
+            Route::put('/{id}', [ContactMessageController::class, 'update'])->name('update');
+            Route::delete('/{id}', [ContactMessageController::class, 'destroy'])->name('destroy');
+        });
+
+        // Cache
+        Route::prefix('/cache')->name('cache.')->group(function () {
+            Route::post('/clear', [DashboardController::class, 'clearCache'])->name('clear');
+            Route::post('/clear-pages', [DashboardController::class, 'clearPageCache'])->name('clear-pages');
+            Route::post('/clear-themes', [DashboardController::class, 'clearThemeCache'])->name('clear-themes');
+        });
+
+        // Maintenance
+        Route::prefix('/maintenance')->name('maintenance.')->group(function () {
+            Route::post('/enable', [DashboardController::class, 'enableMaintenance'])->name('enable');
+            Route::post('/disable', [DashboardController::class, 'disableMaintenance'])->name('disable');
+        });
+
+        // Backup
+        Route::prefix('/backup')->name('backup.')->group(function () {
+            Route::get('/', [DashboardController::class, 'backup'])->name('index');
+            Route::post('/create', [DashboardController::class, 'createBackup'])->name('create');
+            Route::delete('/{file}', [DashboardController::class, 'deleteBackup'])->name('delete');
+            Route::get('/download/{file}', [DashboardController::class, 'downloadBackup'])->name('download');
+        });
+
+        // Logs
+        Route::prefix('/logs')->name('logs.')->group(function () {
+            Route::get('/', [DashboardController::class, 'logs'])->name('index');
+            Route::delete('/clear', [DashboardController::class, 'clearLogs'])->name('clear');
+            Route::get('/download', [DashboardController::class, 'downloadLogs'])->name('download');
+        });
+
+        // Profil
+        Route::prefix('/profile')->name('profile.')->group(function () {
+            Route::get('/', [DashboardController::class, 'profile'])->name('index');
+            Route::put('/', [DashboardController::class, 'updateProfile'])->name('update');
+            Route::put('/password', [DashboardController::class, 'updatePassword'])->name('password');
+        });
+
+        // Notifications
+        Route::prefix('/notifications')->name('notifications.')->group(function () {
+            Route::get('/', [DashboardController::class, 'notifications'])->name('index');
+            Route::post('/{id}/read', [DashboardController::class, 'markAsRead'])->name('read');
+            Route::post('/read-all', [DashboardController::class, 'markAllAsRead'])->name('read-all');
+        });
+
+        // Media
+        Route::prefix('/media')->name('media.')->group(function () {
+            Route::get('/', [MediaController::class, 'index'])->name('index');
+            Route::get('/locations/{level}', [MediaController::class, 'locations'])->name('locations');
+            Route::post('/upload', [MediaController::class, 'upload'])->name('upload');
+            Route::delete('/{id}', [MediaController::class, 'destroy'])->name('destroy');
+            Route::post('/bulk/delete', [MediaController::class, 'bulkDelete'])->name('bulk-delete');
+            Route::put('/{id}', [MediaController::class, 'update'])->name('update');
+            Route::get('/folder/{folder}', [MediaController::class, 'folder'])->name('folder');
+            Route::post('/folder/create', [MediaController::class, 'createFolder'])->name('create-folder');
+            Route::get('/export', [MediaController::class, 'export'])->name('export');
+            Route::get('/{id}', [MediaController::class, 'getMedia'])->name('get');
+        });
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| API publique
+|--------------------------------------------------------------------------
+*/
+Route::prefix('api/cms')->middleware(['web'])->group(function () {
+    Route::prefix('company/{etablissementId}')->name('cms.api.')->group(function () {
+        Route::get('/pages', [PublicPageController::class, 'getPagesApi'])->name('pages');
+        Route::get('/pages/{slug}', [PublicPageController::class, 'getPageApi'])->name('page');
+        Route::get('/blog', [PublicBlogController::class, 'indexApi'])->name('blog.index');
+        Route::get('/blog/{slug}', [PublicBlogController::class, 'showApi'])->name('blog.show');
+        Route::get('/search', [PublicPageController::class, 'searchApi'])->name('search');
+        Route::post('/newsletter/subscribe', [PublicPageController::class, 'subscribeApi'])->name('newsletter.subscribe');
+        Route::post('/contact', [PublicPageController::class, 'contactApi'])->name('contact');
+    });
+});
+
+Route::post('/webhook/cms/{token}', [PublicPageController::class, 'webhook'])->name('cms.webhook');
+

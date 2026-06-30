@@ -13,6 +13,8 @@ class Secteur extends Model
 {
     use HasFactory, SoftDeletes, HasPage;
 
+    protected $connection = 'mysql';
+
     protected $fillable = [
         'name',
         'code',
@@ -23,6 +25,7 @@ class Secteur extends Model
         'density',
         'mayor',
         'website',
+        'image',
         'description',
         'history',
         'attractions',
@@ -121,6 +124,13 @@ class Secteur extends Model
 public function villes(): HasMany
 {
     return $this->hasMany(Ville::class);
+}
+
+public function getImageUrlAttribute()
+{
+    if (!$this->image) return null;
+    if (str_starts_with($this->image, 'http')) return $this->image;
+    return asset('storage/' . $this->image);
 }
 
 }

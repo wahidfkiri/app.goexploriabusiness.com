@@ -13,6 +13,8 @@ class Ville extends Model
 {
     use HasFactory, SoftDeletes, HasPage;
 
+    protected $connection = 'mysql';
+
     protected $fillable = [
         'name',
         'code',
@@ -26,6 +28,7 @@ class Ville extends Model
         'founding_year',
         'mayor',
         'website',
+        'image',
         'description',
         'history',
         'economy',
@@ -176,5 +179,12 @@ class Ville extends Model
 public function scopeActive($query)
 {
     return $query->where('is_active', true);
+}
+
+public function getImageUrlAttribute()
+{
+    if (!$this->image) return null;
+    if (str_starts_with($this->image, 'http')) return $this->image;
+    return asset('storage/' . $this->image);
 }
 }

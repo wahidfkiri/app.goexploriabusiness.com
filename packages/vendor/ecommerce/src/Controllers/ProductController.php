@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductFamily;
 use App\Models\ProductCategory;
+use App\Models\ProductVariant;
 use App\Models\Tax;
-use App\Models\Etablissement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,10 +17,63 @@ use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
+    private function currentEtablissementId(?Request $request = null): ?int
+    {
+        $request = $request ?? request();
+
+        $explicitId = $request->input('etablissement_id', $request->query('etablissement_id'));
+        if (is_numeric($explicitId) && (int) $explicitId > 0) {
+            session(['current_etablissement_id' => (int) $explicitId]);
+            return (int) $explicitId;
+        }
+
+        $routeId = $request->route('etablissementId');
+        if (is_numeric($routeId) && (int) $routeId > 0) {
+            session(['current_etablissement_id' => (int) $routeId]);
+            return (int) $routeId;
+        }
+
+        if (session()->has('current_etablissement_id')) {
+            $sessionId = (int) session('current_etablissement_id');
+            if ($sessionId > 0) {
+                return $sessionId;
+            }
+        }
+
+        $referer = (string) $request->headers->get('referer', '');
+        if ($referer && preg_match('#/admin/cms/(\d+)/#', $referer, $matches)) {
+            $refererId = (int) ($matches[1] ?? 0);
+            if ($refererId > 0) {
+                session(['current_etablissement_id' => $refererId]);
+                return $refererId;
+            }
+        }
+
+        $userEtablissementId = auth()->user()->etablissement_id ?? null;
+        return $userEtablissementId ? (int) $userEtablissementId : null;
+    }
+
+    private function scopedProductsQuery(bool $withTrashed = false)
+    {
+        $query = $withTrashed ? Product::withTrashed() : Product::query();
+        $etablissementId = $this->currentEtablissementId();
+
+        if ($etablissementId) {
+            $query->where('etablissement_id', $etablissementId);
+        }
+
+        return $query;
+    }
+
     public function index(Request $request)
     {
+        $etablissementId = $this->currentEtablissementId($request);
+
         if ($request->ajax()) {
             $query = Product::with(['category', 'family', 'variants']);
+            if ($etablissementId) {
+                $query->where('etablissement_id', $etablissementId);
+            }
             
             // Apply filters
             if ($request->search) {
@@ -117,11 +170,11 @@ class ProductController extends Controller
                     'current_stock' => $product->current_stock,
                     'minimum_stock' => $product->minimum_stock,
                     'stock_location' => $product->stock_location,
-                    // 'is_available_for_sale' => $product->is_available_for_sale,
-                    'is_public' => $product->is_public,
+                    'is_available_for_sale' => (bool) $product->is_available_for_sale,
+                    'is_public' => (bool) $product->is_public,
                     'sales_count' => $product->sales_count,
                     'views_count' => $product->views_count,
-                    'main_image' => $product->main_image,
+                    'main_image' => $this->toPublicFileUrl($product->main_image),
                     'short_description' => $product->short_description,
                     'long_description' => $product->long_description,
                     'variants' => $product->variants->map(function($variant) {
@@ -152,31 +205,34 @@ class ProductController extends Controller
         $families = ProductFamily::where('is_active', true)->get();
         $categories = ProductCategory::where('is_active', true)->get();
         
-        return view('ecommerce::products.index', compact('families', 'categories'));
+        return view('ecommerce::products.index', compact('families', 'categories', 'etablissementId'));
     }
     
     public function statistics()
     {
-        
+        $etablissementId = $this->currentEtablissementId();
+
         $stats = [
-            'total' => Product::count(),
-            'physical' => Product::where('main_type', 'produit_physique')->count(),
-            'services' => Product::whereIn('main_type', ['service', 'prestation'])->count(),
-            'subscriptions' => Product::where('main_type', 'abonnement')->count(),
-            'total_value' => Product::sum('price_ttc'),
+            'total' => Product::when($etablissementId, fn($q) => $q->where('etablissement_id', $etablissementId))->count(),
+            'physical' => Product::when($etablissementId, fn($q) => $q->where('etablissement_id', $etablissementId))->where('main_type', 'produit_physique')->count(),
+            'services' => Product::when($etablissementId, fn($q) => $q->where('etablissement_id', $etablissementId))->whereIn('main_type', ['service', 'prestation'])->count(),
+            'subscriptions' => Product::when($etablissementId, fn($q) => $q->where('etablissement_id', $etablissementId))->where('main_type', 'abonnement')->count(),
+            'total_value' => Product::when($etablissementId, fn($q) => $q->where('etablissement_id', $etablissementId))->sum('price_ttc'),
             'by_family' => DB::table('products')
                 ->join('product_families', 'products.product_family_id', '=', 'product_families.id')
+                ->when($etablissementId, fn($q) => $q->where('products.etablissement_id', $etablissementId))
                 ->select('product_families.name as family_name', DB::raw('count(*) as total'))
                 ->groupBy('product_families.name')
                 ->get(),
             'by_category' => DB::table('products')
                 ->join('product_categories', 'products.product_category_id', '=', 'product_categories.id')
+                ->when($etablissementId, fn($q) => $q->where('products.etablissement_id', $etablissementId))
                 ->select('product_categories.name as category_name', DB::raw('count(*) as total'))
                 ->groupBy('product_categories.name')
                 ->orderBy('total', 'desc')
                 ->limit(5)
                 ->get(),
-                'top_products' => Product::where('sales_count', '>', 0)
+                'top_products' => Product::when($etablissementId, fn($q) => $q->where('etablissement_id', $etablissementId))->where('sales_count', '>', 0)
                 ->orderBy('sales_count', 'desc')
                 ->limit(5)
                 ->get(['name', 'sales_count'])
@@ -211,7 +267,7 @@ public function show($id)
         $product->increment('views_count');
 
         // Récupérer les produits associés (même catégorie ou famille)
-        $relatedProducts = Product::where('etablissement_id', auth()->user()->etablissement_id)
+        $relatedProducts = Product::where('etablissement_id', $product->etablissement_id)
             ->where('id', '!=', $product->id)
             ->where(function($query) use ($product) {
                 $query->where('product_category_id', $product->product_category_id)
@@ -270,9 +326,10 @@ public function show($id)
     /**
      * Display the create form for products/services.
      */
-    public function create()
+    public function create(Request $request)
     {
         try {
+            $etablissementId = $this->currentEtablissementId($request);
             // Récupérer les familles de produits actives
             $families = ProductFamily::where('is_active', true)
                 ->orderBy('order')
@@ -335,7 +392,7 @@ public function show($id)
 
             // Statistiques pour affichage (optionnel)
             $stats = [
-                'total_products' => Product::where('etablissement_id', auth()->user()->etablissement_id)->count(),
+                'total_products' => Product::when($etablissementId, fn($q, $eid) => $q->where('etablissement_id', $eid))->count(),
                 'total_families' => $families->count(),
                 'total_categories' => $categories->count(),
             ];
@@ -351,7 +408,8 @@ public function show($id)
                 'billingUnits',
                 'billingPeriods',
                 'stats',
-                'defaultReference'
+                'defaultReference',
+                'etablissementId'
             ));
 
         } catch (\Exception $e) {
@@ -366,8 +424,9 @@ public function show($id)
             $billingPeriods = [];
             $stats = [];
             $defaultReference = 'PROD-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+            $etablissementId = $this->currentEtablissementId($request);
 
-            return view('products.create', compact(
+            return view('ecommerce::products.create', compact(
                 'families',
                 'categories',
                 'taxes',
@@ -375,7 +434,8 @@ public function show($id)
                 'billingUnits',
                 'billingPeriods',
                 'stats',
-                'defaultReference'
+                'defaultReference',
+                'etablissementId'
             ))->with('error', 'Certaines données n\'ont pas pu être chargées.');
         }
     }
@@ -392,6 +452,11 @@ public function show($id)
             'tax_rate' => 'required|numeric|min:0|max:100',
             'product_family_id' => 'nullable|exists:product_families,id',
             'product_category_id' => 'nullable|exists:product_categories,id',
+            'is_available_for_sale' => 'boolean',
+            'is_public' => 'boolean',
+            'is_taxable' => 'boolean',
+            'requires_appointment' => 'boolean',
+            'has_commitment' => 'boolean',
         ]);
 
         // Generate reference if empty
@@ -404,24 +469,32 @@ public function show($id)
         $validated['price_ht'] = round($validated['price_ht'], 2);
 
         // Set etablissement_id
-        $etablissement = Etablissement::first();
-        $validated['etablissement_id'] = $etablissement->id;
-
-        // Generate slug if empty
-        if (empty($validated['slug'])) {
-            $validated['slug'] = Str::slug($validated['name']);
+        $etablissementId = $this->currentEtablissementId($request);
+        if (!$etablissementId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucun établissement de contexte détecté. Ouvrez cette page depuis le dashboard CMS de votre entreprise.'
+            ], 422);
         }
+        $validated['etablissement_id'] = $etablissementId;
+
+        $validated['slug'] = $this->generateUniqueSlug($validated['name']);
+        $validated['is_available_for_sale'] = $request->has('is_available_for_sale');
+        $validated['is_public'] = $request->has('is_public');
+        $validated['is_taxable'] = $request->has('is_taxable');
+        $validated['requires_appointment'] = $request->has('requires_appointment');
+        $validated['has_commitment'] = $request->has('has_commitment');
 
         // Handle file uploads
         if ($request->hasFile('main_image')) {
             $path = $request->file('main_image')->store('products', 'public');
-            $validated['main_image'] = $path;
+            $validated['main_image'] = $this->toPublicFileUrl($path);
         }
 
         if ($request->hasFile('gallery_images')) {
             $galleryPaths = [];
             foreach ($request->file('gallery_images') as $image) {
-                $galleryPaths[] = $image->store('products/gallery', 'public');
+                $galleryPaths[] = $this->toPublicFileUrl($image->store('products/gallery', 'public'));
             }
             $validated['gallery_images'] = json_encode($galleryPaths);
         }
@@ -464,10 +537,12 @@ public function show($id)
     }
 }
    
-   public function edit($id)
+   public function edit(Request $request, $id)
 {
     try {
-        $product = Product::with(['category', 'family', 'variants'])
+        $etablissementId = $this->currentEtablissementId($request);
+        $product = $this->scopedProductsQuery()
+            ->with(['category', 'family', 'variants'])
             ->findOrFail($id);
 
         $families = ProductFamily::where('is_active', true)
@@ -493,7 +568,7 @@ public function show($id)
             ]);
         }
 
-        return view('ecommerce::products.edit', compact('product', 'families', 'categories', 'taxes'));
+        return view('ecommerce::products.edit', compact('product', 'families', 'categories', 'taxes', 'etablissementId'));
 
     } catch (\Exception $e) {
         \Log::error('Erreur dans ProductController@edit: ' . $e->getMessage());
@@ -506,7 +581,7 @@ public function show($id)
 public function update(Request $request, $id)
 {
     try {
-        $product = Product::where('etablissement_id', auth()->user()->etablissement_id)
+        $product = $this->scopedProductsQuery()
             ->findOrFail($id);
 
         $validated = $request->validate([
@@ -558,36 +633,45 @@ public function update(Request $request, $id)
         if ($request->hasFile('main_image')) {
             // Supprimer l'ancienne image
             if ($product->main_image) {
-                Storage::disk('public')->delete($product->main_image);
+                $oldMainImagePath = $this->extractStoragePath($product->main_image);
+                if ($oldMainImagePath) {
+                    Storage::disk('public')->delete($oldMainImagePath);
+                }
             }
             $path = $request->file('main_image')->store('products/main', 'public');
-            $validated['main_image'] = $path;
+            $validated['main_image'] = $this->toPublicFileUrl($path);
         } elseif ($request->has('delete_main_image')) {
             // Supprimer l'image sans en ajouter une nouvelle
             if ($product->main_image) {
-                Storage::disk('public')->delete($product->main_image);
+                $oldMainImagePath = $this->extractStoragePath($product->main_image);
+                if ($oldMainImagePath) {
+                    Storage::disk('public')->delete($oldMainImagePath);
+                }
             }
             $validated['main_image'] = null;
         }
 
         // Gérer les images de galerie
-        $existingGallery = $product->gallery_images ? json_decode($product->gallery_images, true) : [];
+        $existingGallery = $this->normalizeGalleryImages($product->gallery_images);
         $deletedGallery = $request->input('deleted_gallery_images', []);
         
         // Supprimer les images marquées pour suppression
         foreach ($deletedGallery as $image) {
-            Storage::disk('public')->delete($image);
+            $imagePath = $this->extractStoragePath($image);
+            if ($imagePath) {
+                Storage::disk('public')->delete($imagePath);
+            }
             $existingGallery = array_diff($existingGallery, [$image]);
         }
 
         // Ajouter les nouvelles images
         if ($request->hasFile('gallery_images')) {
             foreach ($request->file('gallery_images') as $image) {
-                $existingGallery[] = $image->store('products/gallery', 'public');
+                $existingGallery[] = $this->toPublicFileUrl($image->store('products/gallery', 'public'));
             }
         }
 
-        $validated['gallery_images'] = json_encode($existingGallery);
+        $validated['gallery_images'] = array_values($existingGallery);
 
         // Mettre à jour le produit
         $product->update($validated);
@@ -641,7 +725,10 @@ private function handleVariants($request, $product)
             if (isset($variantData['new_image']) && $variantData['new_image'] instanceof UploadedFile) {
                 // Supprimer l'ancienne image si elle existe
                 if (isset($variantData['existing_image'])) {
-                    Storage::disk('public')->delete($variantData['existing_image']);
+                    $existingImagePath = $this->extractStoragePath($variantData['existing_image']);
+                    if ($existingImagePath) {
+                        Storage::disk('public')->delete($existingImagePath);
+                    }
                 }
                 $variantToSave['image'] = $variantData['new_image']->store('products/variants', 'public');
             } elseif (isset($variantData['image']) && $variantData['image'] instanceof UploadedFile) {
@@ -785,7 +872,8 @@ public function destroy($id)
 {
     try {
         // Récupérer le produit avec ses relations
-        $product = Product::with(['variants', 'invoiceLines', 'quoteLines'])
+        $product = $this->scopedProductsQuery()
+            ->with(['variants', 'invoiceLines', 'quoteLines'])
             ->findOrFail($id);
 
         // Vérifier si le produit est utilisé dans des factures
@@ -884,15 +972,19 @@ private function deleteProductImages($product)
     try {
         // Supprimer l'image principale
         if ($product->main_image) {
-            Storage::disk('public')->delete($product->main_image);
+            $mainImagePath = $this->extractStoragePath($product->main_image);
+            if ($mainImagePath) {
+                Storage::disk('public')->delete($mainImagePath);
+            }
         }
 
         // Supprimer les images de la galerie
-        if ($product->gallery_images) {
-            $gallery = json_decode($product->gallery_images, true);
-            if (is_array($gallery)) {
-                foreach ($gallery as $image) {
-                    Storage::disk('public')->delete($image);
+        $gallery = $this->normalizeGalleryImages($product->gallery_images);
+        if (!empty($gallery)) {
+            foreach ($gallery as $image) {
+                $galleryImagePath = $this->extractStoragePath($image);
+                if ($galleryImagePath) {
+                    Storage::disk('public')->delete($galleryImagePath);
                 }
             }
         }
@@ -910,7 +1002,10 @@ private function deleteProductVariants($product)
         foreach ($product->variants as $variant) {
             // Supprimer l'image de la variante
             if ($variant->image) {
-                Storage::disk('public')->delete($variant->image);
+                $variantImagePath = $this->extractStoragePath($variant->image);
+                if ($variantImagePath) {
+                    Storage::disk('public')->delete($variantImagePath);
+                }
             }
             
             // Supprimer la variante (sera supprimée automatiquement si cascade)
@@ -935,6 +1030,18 @@ private function checkDependencies($product)
         $cartsCount = $product->carts()->where('status', 'active')->count();
         if ($cartsCount > 0) {
             $dependencies['carts'] = $cartsCount;
+        }
+    }
+
+    if (method_exists($product, 'onlineOrderItems')) {
+        $ordersCount = $product->onlineOrderItems()
+            ->whereHas('order', function ($q) {
+                $q->whereNotIn('status', ['cancelled', 'refunded']);
+            })
+            ->count();
+
+        if ($ordersCount > 0) {
+            $dependencies['online_orders'] = $ordersCount;
         }
     }
 
@@ -963,7 +1070,7 @@ private function checkDependencies($product)
 public function forceDestroy($id)
 {
     try {
-        $product = Product::withTrashed()
+        $product = $this->scopedProductsQuery(true)
             ->findOrFail($id);
 
         // Supprimer définitivement les images
@@ -992,8 +1099,7 @@ public function forceDestroy($id)
 public function restore($id)
 {
     try {
-        $product = Product::withTrashed()
-            ->where('etablissement_id', auth()->user()->etablissement_id)
+        $product = $this->scopedProductsQuery(true)
             ->findOrFail($id);
 
         $product->restore();
@@ -1015,9 +1121,171 @@ public function restore($id)
         ], 500);
     }
 }
+
+public function duplicate($id)
+{
+    try {
+        $source = $this->scopedProductsQuery()
+            ->with('variants')
+            ->findOrFail($id);
+
+        $copy = $source->replicate();
+        $copy->name = $source->name . ' (Copie)';
+        $copy->reference = 'PROD-' . strtoupper(uniqid());
+        $copy->sku = $source->sku ? $source->sku . '-COPY-' . strtoupper(Str::random(3)) : null;
+        $copy->slug = Str::slug($copy->name . '-' . Str::random(4));
+        $copy->sales_count = 0;
+        $copy->views_count = 0;
+        $copy->save();
+
+        foreach ($source->variants as $variant) {
+            $newVariant = $variant->replicate();
+            $newVariant->product_id = $copy->id;
+            $newVariant->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Produit dupliqué avec succès.',
+            'data' => ['id' => $copy->id],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
     public function export($format, Request $request)
     {
-        // Logic for exporting products in different formats
-        // ...
+        $query = $this->scopedProductsQuery()
+            ->with(['category', 'family']);
+
+        if ($request->filled('type')) {
+            $query->where('main_type', $request->type);
+        }
+
+        $products = $query->orderBy('created_at', 'desc')->get([
+            'id', 'name', 'reference', 'sku', 'main_type', 'price_ttc', 'current_stock', 'is_public', 'created_at'
+        ]);
+
+        if ($format === 'json') {
+            return response()->json([
+                'success' => true,
+                'data' => $products,
+            ]);
+        }
+
+        if ($format === 'csv') {
+            $filename = 'products-' . now()->format('Ymd_His') . '.csv';
+
+            return response()->streamDownload(function () use ($products) {
+                $output = fopen('php://output', 'w');
+                fputcsv($output, ['ID', 'Nom', 'Référence', 'SKU', 'Type', 'Prix TTC', 'Stock', 'Public', 'Créé le'], ';');
+
+                foreach ($products as $product) {
+                    fputcsv($output, [
+                        $product->id,
+                        $product->name,
+                        $product->reference,
+                        $product->sku,
+                        $product->main_type,
+                        $product->price_ttc,
+                        $product->current_stock,
+                        $product->is_public ? 'Oui' : 'Non',
+                        optional($product->created_at)->format('Y-m-d H:i:s'),
+                    ], ';');
+                }
+
+                fclose($output);
+            }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Format d’export non supporté. Utilisez csv ou json.'
+        ], 422);
+    }
+
+    private function toPublicFileUrl(?string $storedValue): ?string
+    {
+        if (!$storedValue) {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $storedValue)) {
+            return $storedValue;
+        }
+
+        return url(Storage::disk('public')->url($storedValue));
+    }
+
+    private function extractStoragePath(?string $storedValue): ?string
+    {
+        if (!$storedValue) {
+            return null;
+        }
+
+        $value = trim($storedValue);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $value)) {
+            $path = (string) parse_url($value, PHP_URL_PATH);
+            if ($path === '') {
+                return null;
+            }
+            $value = $path;
+        }
+
+        $value = ltrim($value, '/');
+        if (str_starts_with($value, 'storage/')) {
+            $value = substr($value, strlen('storage/'));
+        }
+
+        return $value !== '' ? $value : null;
+    }
+
+    private function normalizeGalleryImages($galleryImages): array
+    {
+        if (is_array($galleryImages)) {
+            return array_values(array_filter($galleryImages));
+        }
+
+        if (is_string($galleryImages) && $galleryImages !== '') {
+            $decoded = json_decode($galleryImages, true);
+            if (is_array($decoded)) {
+                return array_values(array_filter($decoded));
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Generate a globally unique slug for products.
+     */
+    private function generateUniqueSlug(string $name, ?int $ignoreId = null): string
+    {
+        $baseSlug = Str::slug($name);
+        if ($baseSlug === '') {
+            $baseSlug = 'product';
+        }
+
+        $slug = $baseSlug;
+        $suffix = 2;
+
+        while (
+            Product::where('slug', $slug)
+                ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+                ->exists()
+        ) {
+            $slug = $baseSlug . '-' . $suffix;
+            $suffix++;
+        }
+
+        return $slug;
     }
 }

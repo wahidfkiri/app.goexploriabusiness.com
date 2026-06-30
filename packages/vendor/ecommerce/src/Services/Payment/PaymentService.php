@@ -47,9 +47,9 @@ class PaymentService
         return $this->provider->refundPayment($transactionId, $amount);
     }
 
-    public function handleWebhook($payload)
+    public function handleWebhook($payload, $signature = null)
     {
-        return $this->provider->handleWebhook($payload);
+        return $this->provider->handleWebhook($payload, $signature);
     }
 
     public function getClientConfig()

@@ -4,6 +4,7 @@ namespace Vendor\Ecommerce\Services\Payment;
 
 use App\Models\PaymentGateway;
 use App\Models\PaymentTransaction;
+use App\Models\Invoice;
 use Illuminate\Support\Facades\Log;
 use Stripe\StripeClient;
 
@@ -22,7 +23,7 @@ class StripeService
     {
         try {
             $paymentIntent = $this->stripe->paymentIntents->create([
-                'amount' => $amount * 100, // Stripe utilise les centimes
+                'amount' => (int) round($amount * 100), // Stripe utilise les centimes
                 'currency' => strtolower($currency),
                 'metadata' => $metadata,
                 'description' => $metadata['description'] ?? 'Paiement',

@@ -1,0 +1,21 @@
+{
+    "name": "vendor/mode-emploi",
+    "description": "Mode d'emploi - Video lessons for platform usage",
+    "type": "library",
+    "autoload": {
+      "psr-4": {
+        "Vendor\\ModeEmploi\\": "src/"
+      }
+    },
+    "require": {
+      "php": "^8.0",
+      "illuminate/support": "^10.0"
+    },
+    "extra": {
+      "laravel": {
+        "providers": [
+          "Vendor\\ModeEmploi\\ModeEmploiServiceProvider"
+        ]
+      }
+    }
+}

@@ -19,7 +19,7 @@ class Place extends Model
         'description',
         'latitude',
         'longitude',
-        'category',
+        'map_category_id',
         'images',
         'video_url',
         'video_id',
@@ -69,6 +69,14 @@ class Place extends Model
     public function activity(): BelongsTo
     {
         return $this->belongsTo(Activity::class);
+    }
+
+    /**
+     * Relation avec la catégorie carte
+     */
+    public function mapCategory(): BelongsTo
+    {
+        return $this->belongsTo(MapCategory::class);
     }
 
     /**
@@ -160,30 +168,22 @@ class Place extends Model
     }
 
     /**
+     * Obtenir le slug de la catégorie
+     */
+    public function getCategorySlugAttribute()
+    {
+        return $this->mapCategory?->slug;
+    }
+
+    /**
      * Obtenir la catégorie avec icône
      */
     public function getCategoryIconAttribute()
     {
-        $icons = [
-            'restaurant' => 'fas fa-utensils',
-            'hotel' => 'fas fa-hotel',
-            'museum' => 'fas fa-landmark',
-            'park' => 'fas fa-tree',
-            'beach' => 'fas fa-umbrella-beach',
-            'shopping' => 'fas fa-shopping-bag',
-            'attraction' => 'fas fa-camera',
-            'historic' => 'fas fa-monument',
-            'religious' => 'fas fa-church',
-            'natural' => 'fas fa-mountain',
-            'cultural' => 'fas fa-theater-masks',
-            'sport' => 'fas fa-futbol',
-            'entertainment' => 'fas fa-film',
-            'transport' => 'fas fa-bus',
-            'health' => 'fas fa-hospital',
-            'education' => 'fas fa-graduation-cap',
-        ];
-
-        return $icons[$this->category] ?? 'fas fa-map-marker-alt';
+        if ($this->relationLoaded('mapCategory') && $this->mapCategory) {
+            return $this->mapCategory->icon_class ?: 'fas fa-map-marker-alt';
+        }
+        return 'fas fa-map-marker-alt';
     }
 
     /**
@@ -203,11 +203,11 @@ class Place extends Model
     }
 
     /**
-     * Scope pour une catégorie spécifique
+     * Scope pour une catégorie spécifique (slug)
      */
     public function scopeByCategory($query, $category)
     {
-        return $query->where('category', $category);
+        return $query->whereHas('mapCategory', fn($q) => $q->where('slug', $category));
     }
 
     /**
@@ -234,8 +234,7 @@ class Place extends Model
         return $query->where(function ($q) use ($search) {
             $q->where('name', 'like', "%{$search}%")
               ->orWhere('description', 'like', "%{$search}%")
-              ->orWhere('address', 'like', "%{$search}%")
-              ->orWhere('category', 'like', "%{$search}%");
+              ->orWhere('address', 'like', "%{$search}%");
         });
     }
 

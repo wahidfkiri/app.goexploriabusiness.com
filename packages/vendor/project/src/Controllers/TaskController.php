@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\Etablissement;
 use App\Models\TaskFile;
 use Illuminate\Http\Request;
+use App\Models\TaskComment;
+use App\Models\TaskCommentFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -16,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Vendor\Project\Mail\TaskCreated;
+use Vendor\Project\Mail\TaskUpdated;
 use Illuminate\Support\Facades\Mail;
 
 class TaskController extends Controller
@@ -29,37 +32,104 @@ class TaskController extends Controller
         $this->middleware('verified')->only(['create', 'store', 'edit', 'update', 'destroy']);
     }
 
-    /**
-     * Display a listing of the tasks.
-     */
     public function index(Request $request)
-    {
-        if ($request->ajax()) {
-            return $this->getTasksData($request);
+{
+    if ($request->ajax()) {
+        if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('super-admin')){
+        $query = Task::with(['project', 'user', 'etablissement']);
+        }else{
+        $query = Task::with(['project', 'user', 'etablissement'])->where('user_id', Auth::id());
         }
         
-        $projects = Project::where('etablissement_id', Auth::user()->etablissement_id)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        // Appliquer les filtres
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
         
-        $users = User::where('is_active', true)
-            ->where('etablissement_id', Auth::user()->etablissement_id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        if ($request->filled('project_id')) {
+            $query->where('project_id', $request->project_id);
+        }
         
-        $statuses = [
-            'pending' => 'En attente',
-            'in_progress' => 'En cours',
-            'test' => 'En test',
-            'integrated' => 'Intégré',
-            'delivered' => 'Livré',
-            'approved' => 'Approuvé',
-            'cancelled' => 'Annulé',
-        ];
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
         
-        return view('tasks.index', compact('projects', 'users', 'statuses'));
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        
+        if ($request->filled('etablissement_id')) {
+            $query->where('etablissement_id', $request->etablissement_id);
+        }
+        
+        // Filtre de date
+        if ($request->filled('date_range')) {
+            switch($request->date_range) {
+                case 'today':
+                    $query->whereDate('due_date', today());
+                    break;
+                case 'week':
+                    $query->whereBetween('due_date', [now()->startOfWeek(), now()->endOfWeek()]);
+                    break;
+                case 'month':
+                    $query->whereMonth('due_date', now()->month);
+                    break;
+                case 'overdue':
+                    $query->where('due_date', '<', now())
+                          ->whereNotIn('status', ['approved', 'delivered', 'cancelled']);
+                    break;
+            }
+        }
+        
+        $tasks = $query->paginate(200);
+        
+        // Grouper par projet
+        $groupedByProject = $tasks->groupBy(function($task) {
+            return $task->project->name ?? 'Sans projet';
+        })->map(function($group) {
+            return [
+                'project' => $group->first()->project,
+                'tasks' => $group->map(function($task) {
+                    return array_merge($task->toArray(), [
+                        'progress' => $task->getProgress(),
+                        'is_overdue' => $task->isOverdue(),
+                        'status_formatted' => $task->formatted_status,
+                        'status_color' => $task->status_color
+                    ]);
+                })
+            ];
+        });
+        
+        return response()->json([
+            'success' => true,
+            'grouped_by_project' => $groupedByProject,
+            'tasks' => $tasks,
+            'current_page' => $tasks->currentPage(),
+            'last_page' => $tasks->lastPage(),
+            'per_page' => $tasks->perPage(),
+            'total' => $tasks->total(),
+            'prev_page_url' => $tasks->previousPageUrl(),
+            'next_page_url' => $tasks->nextPageUrl()
+        ]);
     }
+    
+    // Vue normale
+    $projects = Project::all();
+    $users = User::all();
+    $etablissements = Etablissement::all();
+    $statuses = [
+        'pending' => 'En attente',
+        'in_progress' => 'En cours',
+        'test' => 'En test',
+        'integrated' => 'IntÃƒÆ’Ã‚Â©grÃƒÆ’Ã‚Â©',
+        'delivered' => 'LivrÃƒÆ’Ã‚Â©',
+        'approved' => 'ApprouvÃƒÆ’Ã‚Â©',
+        'cancelled' => 'AnnulÃƒÆ’Ã‚Â©'
+    ];
+    
+    return view('project::tasks.index', compact('projects', 'users', 'etablissements', 'statuses'));
+}
+
 
     /**
      * Get tasks data for AJAX requests.
@@ -157,8 +227,8 @@ class TaskController extends Controller
                     'project_id' => $task->project_id,
                     'project_name' => $task->project->name ?? 'N/A',
                     'user_id' => $task->user_id,
-                    'user_name' => $task->user->name ?? 'Non assigné',
-                    'creator_name' => $task->creator->name ?? 'Système',
+                    'user_name' => $task->user->name ?? 'Non assignÃƒÆ’Ã‚Â©',
+                    'creator_name' => $task->creator->name ?? 'SystÃƒÆ’Ã‚Â¨me',
                     'country' => $task->country,
                     'location' => $task->location,
                     'contract_number' => $task->contract_number,
@@ -170,7 +240,7 @@ class TaskController extends Controller
                     'estimated_hours' => $task->estimated_hours,
                     'hourly_rate' => $task->hourly_rate,
                     'estimated_cost' => $task->estimated_cost,
-                    'estimated_cost_formatted' => number_format($task->estimated_cost ?? 0, 2, ',', ' ') . ' €',
+                    'estimated_cost_formatted' => number_format($task->estimated_cost ?? 0, 2, ',', ' ') . ' ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬',
                     'status' => $task->status,
                     'status_formatted' => $task->formatted_status,
                     'status_color' => $task->status_color,
@@ -229,21 +299,39 @@ class TaskController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors du chargement des tâches',
+                'message' => 'Erreur lors du chargement des tÃƒÆ’Ã‚Â¢ches',
                 'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
 
+
+    public function statistics()
+{
+    $tasks = Task::all();
+    
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'total' => $tasks->count(),
+            'in_progress' => $tasks->where('status', 'in_progress')->count(),
+            'pending' => $tasks->where('status', 'pending')->count(),
+            'completed' => $tasks->whereIn('status', ['approved', 'delivered'])->count(),
+            'overdue' => $tasks->filter(function($task) {
+                return $task->isOverdue();
+            })->count()
+        ]
+    ]);
+}
     /**
      * Get task statistics.
      */
-    public function statistics(Request $request)
+    public function statisticsData(Request $request)
     {
         try {
             $etablissementId = Auth::user()->etablissement_id;
             
-            $query = Task::where('etablissement_id', $etablissementId);
+            $query = Task::query();
             
             if ($request->filled('project_id')) {
                 $query->where('project_id', $request->project_id);
@@ -353,7 +441,7 @@ class TaskController extends Controller
                     'created_this_month' => $createdThisMonth,
                     'total_hours' => $totalHours,
                     'total_cost' => $totalCost,
-                    'total_cost_formatted' => number_format($totalCost, 2, ',', ' ') . ' €',
+                    'total_cost_formatted' => number_format($totalCost, 2, ',', ' ') . ' ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬',
                     'monthly_evolution' => $monthlyEvolution,
                     'pending' => $byStatus['pending']->total ?? 0,
                     'in_progress' => $byStatus['in_progress']->total ?? 0,
@@ -403,10 +491,10 @@ class TaskController extends Controller
             'pending' => 'En attente',
             'in_progress' => 'En cours',
             'test' => 'En test',
-            'integrated' => 'Intégré',
-            'delivered' => 'Livré',
-            'approved' => 'Approuvé',
-            'cancelled' => 'Annulé',
+            'integrated' => 'IntÃƒÆ’Ã‚Â©grÃƒÆ’Ã‚Â©',
+            'delivered' => 'LivrÃƒÆ’Ã‚Â©',
+            'approved' => 'ApprouvÃƒÆ’Ã‚Â©',
+            'cancelled' => 'AnnulÃƒÆ’Ã‚Â©',
         ];
         
         return view('tasks.create', compact('projects', 'users', 'statuses', 'project'));
@@ -416,6 +504,9 @@ class TaskController extends Controller
      * Store a newly created task in storage.
      */
     /**
+ * Store a newly created task in storage.
+ */
+/**
  * Store a newly created task in storage.
  */
 public function store(Request $request)
@@ -441,12 +532,14 @@ public function store(Request $request)
         'module_url' => 'nullable|url|max:255',
         'priority' => 'nullable|in:low,medium,high,urgent',
         'tags' => 'nullable|string',
+        'files' => 'nullable|array',
+        'files.*' => 'nullable|file|max:10240|mimes:jpeg,png,jpg,gif,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip'
     ], [
-        'name.required' => 'Le nom de la tâche est obligatoire',
+        'name.required' => 'Le nom de la tÃƒÆ’Ã‚Â¢che est obligatoire',
         'project_id.required' => 'Le projet est obligatoire',
-        'user_id.required' => 'L\'utilisateur assigné est obligatoire',
-        'delivery_date.after_or_equal' => 'La date de livraison doit être postérieure à la date d\'échéance',
-        'module_url.url' => 'L\'URL du module doit être une URL valide',
+        'user_id.required' => 'L\'utilisateur assignÃƒÆ’Ã‚Â© est obligatoire',
+        'delivery_date.after_or_equal' => 'La date de livraison doit ÃƒÆ’Ã‚Âªtre postÃƒÆ’Ã‚Â©rieure ÃƒÆ’Ã‚Â  la date d\'ÃƒÆ’Ã‚Â©chÃƒÆ’Ã‚Â©ance',
+        'module_url.url' => 'L\'URL du module doit ÃƒÆ’Ã‚Âªtre une URL valide',
     ]);
 
     if ($validator->fails()) {
@@ -503,9 +596,13 @@ public function store(Request $request)
             'files_count' => 0,
         ]);
 
+        // ============================================
+        // GESTION DES FICHIERS - UN SEUL BLOC
+        // ============================================
+        $uploadedCount = 0;
+        
+        // VÃƒÆ’Ã‚Â©rifier si des fichiers sont prÃƒÆ’Ã‚Â©sents dans la requÃƒÆ’Ã‚Âªte
         if ($request->hasFile('files')) {
-            $uploadedCount = 0;
-            
             foreach ($request->file('files') as $file) {
                 try {
                     $fileName = time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
@@ -516,7 +613,7 @@ public function store(Request $request)
                         'user_id' => Auth::id(),
                         'file_name' => $fileName,
                         'original_name' => $file->getClientOriginalName(),
-                        'file_path' => $filePath,
+                        'file_path' => $this->toPublicStorageUrl($filePath),
                         'file_size' => $file->getSize(),
                         'mime_type' => $file->getMimeType(),
                         'file_extension' => $file->getClientOriginalExtension(),
@@ -539,23 +636,24 @@ public function store(Request $request)
                     \Log::error('Error uploading file during task creation: ' . $e->getMessage());
                 }
             }
-            
-            if ($uploadedCount > 0) {
-                $task->files_count = $uploadedCount;
-                $task->save();
-            }
         }
+        
+        // Mettre ÃƒÆ’Ã‚Â  jour le compteur de fichiers si nÃƒÆ’Ã‚Â©cessaire
+        if ($uploadedCount > 0) {
+            $task->files_count = $uploadedCount;
+            $task->save();
+        }
+        // ============================================
+        // FIN GESTION DES FICHIERS
+        // ============================================
 
         // ============================================
-        // ENVOI D'EMAIL À L'UTILISATEUR ASSIGNÉ
+        // ENVOI D'EMAIL ÃƒÆ’Ã¢â€šÂ¬ L'UTILISATEUR ASSIGNÃƒÆ’Ã¢â‚¬Â°
         // ============================================
         try {
-            // Récupérer l'utilisateur assigné
             $assignedUser = User::find($request->user_id);
             
-            // Vérifier si l'utilisateur existe et a un email
             if ($assignedUser && $assignedUser->email) {
-                // Envoyer l'email
                 Mail::to($assignedUser->email)->send(new TaskCreated($task));
                 
                 \Log::info('Email sent to assigned user', [
@@ -572,7 +670,6 @@ public function store(Request $request)
             }
             
         } catch (\Exception $e) {
-            // Ne pas bloquer la création de la tâche si l'email échoue
             \Log::error('Failed to send email to assigned user', [
                 'task_id' => $task->id,
                 'user_id' => $request->user_id,
@@ -588,14 +685,14 @@ public function store(Request $request)
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Tâche créée avec succès' . ($task->files_count > 0 ? ' (' . $task->files_count . ' fichier(s))' : ''),
+                'message' => 'TÃƒÆ’Ã‚Â¢che crÃƒÆ’Ã‚Â©ÃƒÆ’Ã‚Â©e avec succÃƒÆ’Ã‚Â¨s' . ($uploadedCount > 0 ? ' (' . $uploadedCount . ' fichier(s))' : ''),
                 'data' => $task,
                 'redirect' => route('tasks.show', $task->id)
             ]);
         }
         
         return redirect()->route('tasks.show', $task->id)
-            ->with('success', 'Tâche créée avec succès');
+            ->with('success', 'TÃƒÆ’Ã‚Â¢che crÃƒÆ’Ã‚Â©ÃƒÆ’Ã‚Â©e avec succÃƒÆ’Ã‚Â¨s' . ($uploadedCount > 0 ? ' (' . $uploadedCount . ' fichier(s) uploadÃƒÆ’Ã‚Â©(s))' : ''));
             
     } catch (\Exception $e) {
         DB::rollBack();
@@ -604,13 +701,13 @@ public function store(Request $request)
         if ($request->ajax()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la création de la tâche',
+                'message' => 'Erreur lors de la crÃƒÆ’Ã‚Â©ation de la tÃƒÆ’Ã‚Â¢che',
                 'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
         
         return redirect()->back()
-            ->with('error', 'Erreur lors de la création de la tâche')
+            ->with('error', 'Erreur lors de la crÃƒÆ’Ã‚Â©ation de la tÃƒÆ’Ã‚Â¢che: ' . $e->getMessage())
             ->withInput();
     }
 }
@@ -666,10 +763,10 @@ public function store(Request $request)
             'pending' => 'En attente',
             'in_progress' => 'En cours',
             'test' => 'En test',
-            'integrated' => 'Intégré',
-            'delivered' => 'Livré',
-            'approved' => 'Approuvé',
-            'cancelled' => 'Annulé',
+            'integrated' => 'IntÃƒÆ’Ã‚Â©grÃƒÆ’Ã‚Â©',
+            'delivered' => 'LivrÃƒÆ’Ã‚Â©',
+            'approved' => 'ApprouvÃƒÆ’Ã‚Â©',
+            'cancelled' => 'AnnulÃƒÆ’Ã‚Â©',
         ];
         
         $generalManagers = User::where('is_active', true)
@@ -756,6 +853,53 @@ public function update(Request $request, Task $task)
     try {
         DB::beginTransaction();
         
+        // ============================================
+        // DÃƒÆ’Ã¢â‚¬Â°TECTER LES CHANGEMENTS AVANT LA MISE ÃƒÆ’Ã¢â€šÂ¬ JOUR
+        // ============================================
+        $changes = [];
+        
+        // Liste des champs ÃƒÆ’Ã‚Â  surveiller
+        $fieldsToWatch = [
+            'name', 'details', 'project_id', 'user_id', 'status', 
+            'due_date', 'delivery_date', 'estimated_hours', 'hourly_rate',
+            'country', 'location', 'contract_number', 'contact_name',
+            'test_date', 'test_details', 'integration_date', 'push_prod_date',
+            'module_url', 'general_manager_id', 'client_manager_id'
+        ];
+        
+        foreach ($fieldsToWatch as $field) {
+            $oldValue = $task->$field;
+            $newValue = $request->$field;
+            
+            // Comparer les valeurs (en convertissant les dates en string pour comparaison)
+            $oldComparable = $oldValue instanceof \DateTime ? $oldValue->format('Y-m-d H:i:s') : $oldValue;
+            $newComparable = $newValue instanceof \DateTime ? $newValue->format('Y-m-d H:i:s') : $newValue;
+            
+            if ($oldComparable != $newComparable) {
+                $changes[$field] = [
+                    'label' => $this->getFieldLabel($field),
+                    'old' => $this->getFormattedValue($task, $field, $oldValue),
+                    'new' => $this->getFormattedValue($task, $field, $newValue),
+                ];
+            }
+        }
+        
+        // VÃƒÆ’Ã‚Â©rifier les changements de prioritÃƒÆ’Ã‚Â© dans metadata
+        $oldMetadata = json_decode($task->metadata, true) ?? [];
+        $oldPriority = $oldMetadata['priority'] ?? 'medium';
+        $newPriority = $request->priority ?? 'medium';
+        
+        if ($oldPriority != $newPriority) {
+            $changes['priority'] = [
+                'label' => 'PrioritÃƒÆ’Ã‚Â©',
+                'old' => $this->getFormattedPriority($oldPriority),
+                'new' => $this->getFormattedPriority($newPriority),
+            ];
+        }
+        
+        // ============================================
+        // EFFECTUER LA MISE ÃƒÆ’Ã¢â€šÂ¬ JOUR
+        // ============================================
         $project = Project::findOrFail($request->project_id);
         
         $estimatedCost = null;
@@ -768,8 +912,6 @@ public function update(Request $request, Task $task)
         $metadata['tags'] = $request->tags ? explode(',', $request->tags) : ($metadata['tags'] ?? []);
         $metadata['updated_by'] = Auth::user()->name;
         $metadata['updated_at'] = now()->toDateTimeString();
-        
-        $oldStatus = $task->status;
         
         $task->update([
             'name' => $request->name,
@@ -797,23 +939,21 @@ public function update(Request $request, Task $task)
             'metadata' => json_encode($metadata),
         ]);
 
-        // Gérer les nouveaux fichiers uploadés
+        // GÃƒÆ’Ã‚Â©rer les nouveaux fichiers uploadÃƒÆ’Ã‚Â©s
         if ($request->hasFile('new_files')) {
             $uploadedCount = 0;
             
             foreach ($request->file('new_files') as $file) {
                 try {
-                    // Générer un nom unique
                     $fileName = time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
                     $filePath = $file->storeAs('tasks/' . $task->id, $fileName, 'public');
 
-                    // Créer l'enregistrement avec TOUS les champs requis
                     TaskFile::create([
                         'task_id' => $task->id,
                         'user_id' => Auth::id(),
                         'file_name' => $fileName,
                         'original_name' => $file->getClientOriginalName(),
-                        'file_path' => $filePath,
+                        'file_path' => $this->toPublicStorageUrl($filePath),
                         'file_size' => $file->getSize(),
                         'mime_type' => $file->getMimeType(),
                         'file_extension' => $file->getClientOriginalExtension(),
@@ -837,26 +977,80 @@ public function update(Request $request, Task $task)
                 }
             }
             
-            // Mettre à jour le compteur
             if ($uploadedCount > 0) {
                 $task->increment('files_count', $uploadedCount);
             }
         }
+        
+        // ============================================
+        // ENVOI D'EMAIL ÃƒÆ’Ã¢â€šÂ¬ L'UTILISATEUR ASSIGNÃƒÆ’Ã¢â‚¬Â°
+        // (S'IL Y A EU DES CHANGEMENTS)
+        // ============================================
+        if (!empty($changes)) {
+            try {
+                $assignedUser = User::find($request->user_id);
+                
+                // Envoyer l'email ÃƒÆ’Ã‚Â  l'utilisateur assignÃƒÆ’Ã‚Â©
+                if ($assignedUser && $assignedUser->email) {
+                    Mail::to($assignedUser->email)->send(new TaskUpdated($task, Auth::user(), $changes));
+                    
+                    \Log::info('Task update email sent to assigned user', [
+                        'task_id' => $task->id,
+                        'user_id' => $assignedUser->id,
+                        'user_email' => $assignedUser->email,
+                        'user_name' => $assignedUser->name,
+                        'changes' => array_keys($changes)
+                    ]);
+                } else {
+                    \Log::warning('Assigned user has no email for task update notification', [
+                        'task_id' => $task->id,
+                        'user_id' => $request->user_id
+                    ]);
+                }
+                
+                // Optionnel: Envoyer aussi au crÃƒÆ’Ã‚Â©ateur de la tÃƒÆ’Ã‚Â¢che si diffÃƒÆ’Ã‚Â©rent
+                if ($task->creator && $task->creator->id != $request->user_id && $task->creator->email) {
+                    Mail::to($task->creator->email)->send(new TaskUpdated($task, Auth::user(), $changes));
+                    
+                    \Log::info('Task update email sent to task creator', [
+                        'task_id' => $task->id,
+                        'creator_id' => $task->creator->id,
+                        'creator_email' => $task->creator->email
+                    ]);
+                }
+                
+            } catch (\Exception $e) {
+                \Log::error('Failed to send task update email', [
+                    'task_id' => $task->id,
+                    'user_id' => $request->user_id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        // ============================================
+        // FIN DE L'ENVOI D'EMAIL
+        // ============================================
         
         DB::commit();
         
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Tâche mise à jour avec succès' . ($request->hasFile('new_files') ? ' (' . count($request->file('new_files')) . ' nouveau(x) fichier(s))' : ''),
+                'message' => 'TÃƒÆ’Ã‚Â¢che mise ÃƒÆ’Ã‚Â  jour avec succÃƒÆ’Ã‚Â¨s' . ($request->hasFile('new_files') ? ' (' . count($request->file('new_files')) . ' nouveau(x) fichier(s))' : ''),
                 'data' => $task,
                 'files_count' => $task->files_count,
+                'changes' => $changes,
                 'redirect' => route('tasks.show', $task->id)
             ]);
         }
         
+        $message = 'TÃƒÆ’Ã‚Â¢che mise ÃƒÆ’Ã‚Â  jour avec succÃƒÆ’Ã‚Â¨s';
+        if (!empty($changes)) {
+            $message .= ' (' . count($changes) . ' modification(s))';
+        }
+        
         return redirect()->route('tasks.show', $task->id)
-            ->with('success', 'Tâche mise à jour avec succès');
+            ->with('success', $message);
             
     } catch (\Exception $e) {
         DB::rollBack();
@@ -865,15 +1059,30 @@ public function update(Request $request, Task $task)
         if ($request->ajax()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour de la tâche',
+                'message' => 'Erreur lors de la mise ÃƒÆ’Ã‚Â  jour de la tÃƒÆ’Ã‚Â¢che',
                 'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
         
         return redirect()->back()
-            ->with('error', 'Erreur lors de la mise à jour de la tâche')
+            ->with('error', 'Erreur lors de la mise ÃƒÆ’Ã‚Â  jour de la tÃƒÆ’Ã‚Â¢che')
             ->withInput();
     }
+}
+
+/**
+ * Get formatted priority label.
+ */
+private function getFormattedPriority(string $priority): string
+{
+    $priorities = [
+        'low' => 'Basse',
+        'medium' => 'Moyenne',
+        'high' => 'Haute',
+        'urgent' => 'Urgente',
+    ];
+    
+    return $priorities[$priority] ?? $priority;
 }
 
     /**
@@ -889,7 +1098,7 @@ public function update(Request $request, Task $task)
             $filesCount = $task->files->count();
             
             foreach ($task->files as $file) {
-                $path = storage_path('app/' . $file->file_path);
+                $path = storage_path('app/public/' . $this->toRelativeStoragePath($file->file_path));
                 if (file_exists($path)) {
                     unlink($path);
                 }
@@ -907,12 +1116,12 @@ public function update(Request $request, Task $task)
             if (request()->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => "La tâche '{$taskName}' et ses {$filesCount} fichier(s) ont été supprimés"
+                    'message' => "La tÃƒÆ’Ã‚Â¢che '{$taskName}' et ses {$filesCount} fichier(s) ont ÃƒÆ’Ã‚Â©tÃƒÆ’Ã‚Â© supprimÃƒÆ’Ã‚Â©s"
                 ]);
             }
             
             return redirect()->route('tasks.index')
-                ->with('success', "La tâche '{$taskName}' et ses {$filesCount} fichier(s) ont été supprimés");
+                ->with('success', "La tÃƒÆ’Ã‚Â¢che '{$taskName}' et ses {$filesCount} fichier(s) ont ÃƒÆ’Ã‚Â©tÃƒÆ’Ã‚Â© supprimÃƒÆ’Ã‚Â©s");
             
         } catch (\Exception $e) {
             DB::rollBack();
@@ -921,13 +1130,13 @@ public function update(Request $request, Task $task)
             if (request()->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Erreur lors de la suppression de la tâche',
+                    'message' => 'Erreur lors de la suppression de la tÃƒÆ’Ã‚Â¢che',
                     'error' => config('app.debug') ? $e->getMessage() : null
                 ], 500);
             }
             
             return redirect()->back()
-                ->with('error', 'Erreur lors de la suppression de la tâche');
+                ->with('error', 'Erreur lors de la suppression de la tÃƒÆ’Ã‚Â¢che');
         }
     }
 
@@ -945,7 +1154,7 @@ public function update(Request $request, Task $task)
             
             return response()->json([
                 'success' => true,
-                'message' => 'Statut mis à jour avec succès',
+                'message' => 'Statut mis ÃƒÆ’Ã‚Â  jour avec succÃƒÆ’Ã‚Â¨s',
                 'data' => [
                     'status' => $task->status,
                     'formatted_status' => $task->formatted_status
@@ -957,7 +1166,7 @@ public function update(Request $request, Task $task)
             
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour du statut',
+                'message' => 'Erreur lors de la mise ÃƒÆ’Ã‚Â  jour du statut',
                 'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
@@ -988,15 +1197,16 @@ public function update(Request $request, Task $task)
             
             foreach ($task->files as $file) {
                 $newPath = 'tasks/' . $newTask->id . '/' . $file->file_name;
-                
-                Storage::disk('public')->copy($file->file_path, $newPath);
+                $sourcePath = $this->toRelativeStoragePath($file->file_path);
+
+                Storage::disk('public')->copy($sourcePath, $newPath);
                 
                 TaskFile::create([
                     'task_id' => $newTask->id,
                     'user_id' => Auth::id(),
                     'file_name' => $file->file_name,
                     'original_name' => $file->original_name,
-                    'file_path' => $newPath,
+                    'file_path' => $this->toPublicStorageUrl($newPath),
                     'file_size' => $file->file_size,
                     'mime_type' => $file->mime_type,
                     'file_extension' => $file->file_extension,
@@ -1019,7 +1229,7 @@ public function update(Request $request, Task $task)
             
             return response()->json([
                 'success' => true,
-                'message' => 'Tâche dupliquée avec succès (' . $task->files->count() . ' fichier(s) copié(s))',
+                'message' => 'TÃƒÆ’Ã‚Â¢che dupliquÃƒÆ’Ã‚Â©e avec succÃƒÆ’Ã‚Â¨s (' . $task->files->count() . ' fichier(s) copiÃƒÆ’Ã‚Â©(s))',
                 'data' => $newTask,
                 'redirect' => route('tasks.edit', $newTask->id)
             ]);
@@ -1030,7 +1240,7 @@ public function update(Request $request, Task $task)
             
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la duplication de la tâche',
+                'message' => 'Erreur lors de la duplication de la tÃƒÆ’Ã‚Â¢che',
                 'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
@@ -1054,7 +1264,7 @@ public function update(Request $request, Task $task)
             
             return response()->json([
                 'success' => true,
-                'message' => 'Tâche assignée avec succès',
+                'message' => 'TÃƒÆ’Ã‚Â¢che assignÃƒÆ’Ã‚Â©e avec succÃƒÆ’Ã‚Â¨s',
                 'data' => [
                     'user_id' => $task->user_id,
                     'user_name' => $task->user->name
@@ -1085,36 +1295,364 @@ public function update(Request $request, Task $task)
         ]);
     }
 
-    /**
-     * Add a comment to a task.
-     */
-    public function addComment(Request $request, Task $task)
-    {
-        $request->validate([
-            'content' => 'required|string'
+  /**
+ * Add a comment to a task with file attachments.
+ */
+public function addComment(Request $request, Task $task)
+{
+    $request->validate([
+        'content' => 'required|string',
+        'attachments.*' => 'nullable|file|max:10240|mimes:jpeg,png,jpg,gif,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip' // 10MB max
+    ]);
+    
+    try {
+        DB::beginTransaction();
+        
+        $comment = $task->comments()->create([
+            'user_id' => Auth::id(),
+            'content' => $request->content
         ]);
         
-        try {
-            $comment = $task->comments()->create([
-                'user_id' => Auth::id(),
-                'content' => $request->content
-            ]);
-            
-            $comment->load('user');
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Commentaire ajouté avec succès',
-                'data' => $comment
-            ]);
-            
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de l\'ajout du commentaire'
-            ], 500);
+        // Handle file uploads
+        $uploadedFiles = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $originalName = $file->getClientOriginalName();
+                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                
+                // Store file in a dedicated folder for each comment
+                $path = $file->storeAs(
+                    'task-comments/' . $comment->id,
+                    $filename,
+                    'public'
+                );
+
+                $commentFile = $comment->files()->create([
+                    'filename' => $filename,
+                    'original_filename' => $originalName,
+                    'filepath' => $path,
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                    'disk' => 'public',
+                    'metadata' => json_encode([
+                        'uploaded_by' => Auth::user()->name,
+                        'uploaded_at' => now()->toDateTimeString(),
+                        'user_id' => Auth::id()
+                    ])
+                ]);
+                
+                $uploadedFiles[] = $commentFile;
+            }
         }
+        
+        DB::commit();
+        
+        // Load relationships
+        $comment->load(['user', 'files']);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Commentaire ajoutÃƒÆ’Ã‚Â© avec succÃƒÆ’Ã‚Â¨s' . (count($uploadedFiles) > 0 ? ' (' . count($uploadedFiles) . ' fichier(s) joint(s))' : ''),
+            'data' => $comment
+        ]);
+        
+    } catch (\Exception $e) {
+        DB::rollBack();
+        
+        \Log::error('Error adding comment with files: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de l\'ajout du commentaire: ' . $e->getMessage()
+        ], 500);
     }
+}
+
+/**
+ * Update a comment with new file attachments.
+ */
+public function updateComment(Request $request, Task $task, TaskComment $comment)
+{
+    // Check if user owns the comment
+    if ($comment->user_id !== Auth::id()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vous n\'ÃƒÆ’Ã‚Âªtes pas autorisÃƒÆ’Ã‚Â© ÃƒÆ’Ã‚Â  modifier ce commentaire'
+        ], 403);
+    }
+    
+    $request->validate([
+        'content' => 'required|string',
+        'attachments.*' => 'nullable|file|max:10240|mimes:jpeg,png,jpg,gif,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip'
+    ]);
+    
+    try {
+        DB::beginTransaction();
+        
+        // Update comment content
+        $comment->content = $request->content;
+        $comment->save();
+        
+        // Handle new file uploads
+        $uploadedFiles = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $originalName = $file->getClientOriginalName();
+                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                
+                $path = $file->storeAs(
+                    'task-comments/' . $comment->id,
+                    $filename,
+                    'public'
+                );
+
+                $commentFile = $comment->files()->create([
+                    'filename' => $filename,
+                    'original_filename' => $originalName,
+                    'filepath' => $path,
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                    'disk' => 'public',
+                    'metadata' => json_encode([
+                        'uploaded_by' => Auth::user()->name,
+                        'uploaded_at' => now()->toDateTimeString(),
+                        'user_id' => Auth::id()
+                    ])
+                ]);
+                
+                $uploadedFiles[] = $commentFile;
+            }
+        }
+        
+        DB::commit();
+        
+        // Load relationships
+        $comment->load(['user', 'files']);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Commentaire mis ÃƒÆ’Ã‚Â  jour avec succÃƒÆ’Ã‚Â¨s' . (count($uploadedFiles) > 0 ? ' (' . count($uploadedFiles) . ' nouveau(x) fichier(s) ajoutÃƒÆ’Ã‚Â©(s))' : ''),
+            'data' => $comment
+        ]);
+        
+    } catch (\Exception $e) {
+        DB::rollBack();
+        
+        \Log::error('Error updating comment with files: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de la mise ÃƒÆ’Ã‚Â  jour du commentaire: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Delete a comment and its associated files.
+ */
+public function deleteComment(Task $task, TaskComment $comment)
+{
+    // Check if user owns the comment
+    if ($comment->user_id !== Auth::id()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vous n\'ÃƒÆ’Ã‚Âªtes pas autorisÃƒÆ’Ã‚Â© ÃƒÆ’Ã‚Â  supprimer ce commentaire'
+        ], 403);
+    }
+    
+    try {
+        DB::beginTransaction();
+        
+        // Get all files before deletion
+        $files = $comment->files;
+        
+        // Delete physical files from storage
+        foreach ($files as $file) {
+            if (Storage::disk($file->disk)->exists($file->filepath)) {
+                Storage::disk($file->disk)->delete($file->filepath);
+            }
+        }
+        
+        // Delete the comment (files will be automatically deleted via cascade)
+        $comment->delete();
+        
+        // Try to delete the empty directory
+        $directory = 'task-comments/' . $comment->id;
+        if (Storage::disk('public')->exists($directory)) {
+            $remainingFiles = Storage::disk('public')->files($directory);
+            if (empty($remainingFiles)) {
+                Storage::disk('public')->deleteDirectory($directory);
+            }
+        }
+        
+        DB::commit();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Commentaire et ses ' . $files->count() . ' fichier(s) supprimÃƒÆ’Ã‚Â©s avec succÃƒÆ’Ã‚Â¨s'
+        ]);
+        
+    } catch (\Exception $e) {
+        DB::rollBack();
+        
+        \Log::error('Error deleting comment with files: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de la suppression du commentaire: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Download a file from a comment.
+ */
+public function downloadCommentFile(Task $task, TaskComment $comment, TaskCommentFile $file)
+{
+    // Verify file belongs to comment
+    if ($file->task_comment_id !== $comment->id) {
+        abort(404);
+    }
+    
+    // Check if user has access to the task
+    // You can add additional authorization logic here
+    
+    if (!Storage::disk($file->disk)->exists($file->filepath)) {
+        abort(404);
+    }
+    
+    return Storage::disk($file->disk)->download(
+        $file->filepath,
+        $file->original_filename
+    );
+}
+
+/**
+ * Delete a specific file from a comment.
+ */
+public function deleteCommentFile(Task $task, TaskComment $comment, TaskCommentFile $file)
+{
+    // Check if user owns the comment
+    if ($comment->user_id !== Auth::id()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vous n\'ÃƒÆ’Ã‚Âªtes pas autorisÃƒÆ’Ã‚Â© ÃƒÆ’Ã‚Â  supprimer ce fichier'
+        ], 403);
+    }
+    
+    // Verify file belongs to comment
+    if ($file->task_comment_id !== $comment->id) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Fichier non trouvÃƒÆ’Ã‚Â©'
+        ], 404);
+    }
+    
+    try {
+        DB::beginTransaction();
+        
+        // Delete physical file
+        if (Storage::disk($file->disk)->exists($file->filepath)) {
+            Storage::disk($file->disk)->delete($file->filepath);
+        }
+        
+        // Delete database record
+        $file->delete();
+        
+        DB::commit();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Fichier supprimÃƒÆ’Ã‚Â© avec succÃƒÆ’Ã‚Â¨s'
+        ]);
+        
+    } catch (\Exception $e) {
+        DB::rollBack();
+        
+        \Log::error('Error deleting comment file: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de la suppression du fichier'
+        ], 500);
+    }
+}
+
+/**
+ * Preview a file from a comment (for images) or return file info.
+ */
+public function previewCommentFile(Task $task, TaskComment $comment, TaskCommentFile $file)
+{
+    // Verify file belongs to comment
+    if ($file->task_comment_id !== $comment->id) {
+        abort(404);
+    }
+    
+    // Check if user has access to the task
+    // You can add additional authorization logic here
+    
+    if (!Storage::disk($file->disk)->exists($file->filepath)) {
+        abort(404);
+    }
+    
+    // If it's an image, return the image for preview
+    if ($file->is_image) {
+        return Storage::disk($file->disk)->response($file->filepath);
+    }
+    
+    // For other files, return file information
+    return response()->json([
+        'success' => true,
+        'file' => [
+            'id' => $file->id,
+            'name' => $file->original_filename,
+            'size' => $file->file_size,
+            'mime_type' => $file->mime_type,
+            'is_image' => $file->is_image,
+            'is_pdf' => $file->is_pdf,
+            'is_document' => $file->is_document,
+            'url' => $file->url,
+            'thumbnail_url' => $file->thumbnail_url,
+            'icon' => $file->file_icon,
+            'created_at' => $file->created_at->format('d/m/Y H:i'),
+            'uploaded_by' => json_decode($file->metadata, true)['uploaded_by'] ?? 'Inconnu'
+        ]
+    ]);
+}
+
+/**
+ * Get temporary URL for file preview (for large files).
+ */
+public function getTemporaryPreviewUrl(Task $task, TaskComment $comment, TaskCommentFile $file)
+{
+    // Verify file belongs to comment
+    if ($file->task_comment_id !== $comment->id) {
+        abort(404);
+    }
+    
+    if (!Storage::disk($file->disk)->exists($file->filepath)) {
+        abort(404);
+    }
+    
+    // Generate temporary URL for preview (valid for 5 minutes)
+    if ($file->is_image || $file->is_pdf) {
+        $temporaryUrl = Storage::disk($file->disk)->temporaryUrl(
+            $file->filepath,
+            now()->addMinutes(5)
+        );
+        
+        return response()->json([
+            'success' => true,
+            'temporary_url' => $temporaryUrl,
+            'expires_at' => now()->addMinutes(5)->toDateTimeString()
+        ]);
+    }
+    
+    return response()->json([
+        'success' => false,
+        'message' => 'Ce type de fichier ne peut pas ÃƒÆ’Ã‚Âªtre prÃƒÆ’Ã‚Â©visualisÃƒÆ’Ã‚Â©'
+    ], 400);
+}
 
     /**
      * Update test date.
@@ -1133,13 +1671,13 @@ public function update(Request $request, Task $task)
             
             return response()->json([
                 'success' => true,
-                'message' => 'Date de test mise à jour avec succès'
+                'message' => 'Date de test mise ÃƒÆ’Ã‚Â  jour avec succÃƒÆ’Ã‚Â¨s'
             ]);
             
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour'
+                'message' => 'Erreur lors de la mise ÃƒÆ’Ã‚Â  jour'
             ], 500);
         }
     }
@@ -1159,13 +1697,13 @@ public function update(Request $request, Task $task)
             
             return response()->json([
                 'success' => true,
-                'message' => 'Date d\'intégration mise à jour avec succès'
+                'message' => 'Date d\'intÃƒÆ’Ã‚Â©gration mise ÃƒÆ’Ã‚Â  jour avec succÃƒÆ’Ã‚Â¨s'
             ]);
             
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour'
+                'message' => 'Erreur lors de la mise ÃƒÆ’Ã‚Â  jour'
             ], 500);
         }
     }
@@ -1185,13 +1723,13 @@ public function update(Request $request, Task $task)
             
             return response()->json([
                 'success' => true,
-                'message' => 'Date de mise en production mise à jour avec succès'
+                'message' => 'Date de mise en production mise ÃƒÆ’Ã‚Â  jour avec succÃƒÆ’Ã‚Â¨s'
             ]);
             
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour'
+                'message' => 'Erreur lors de la mise ÃƒÆ’Ã‚Â  jour'
             ], 500);
         }
     }
@@ -1228,24 +1766,24 @@ public function update(Request $request, Task $task)
                 'ID',
                 'Nom',
                 'Projet',
-                'Assigné à',
+                'AssignÃƒÆ’Ã‚Â© ÃƒÆ’Ã‚Â ',
                 'Statut',
-                'Date d\'échéance',
+                'Date d\'ÃƒÆ’Ã‚Â©chÃƒÆ’Ã‚Â©ance',
                 'Date de livraison',
-                'Heures estimées',
-                'Coût estimé',
+                'Heures estimÃƒÆ’Ã‚Â©es',
+                'CoÃƒÆ’Ã‚Â»t estimÃƒÆ’Ã‚Â©',
                 'Pays',
                 'Lieu',
-                'N° Contrat',
+                'NÃƒâ€šÃ‚Â° Contrat',
                 'Contact',
                 'Date de test',
-                'Date d\'intégration',
+                'Date d\'intÃƒÆ’Ã‚Â©gration',
                 'Date de MEP',
                 'URL Module',
-                'Approuvé',
+                'ApprouvÃƒÆ’Ã‚Â©',
                 'Nb Fichiers',
-                'Créé le',
-                'Créé par'
+                'CrÃƒÆ’Ã‚Â©ÃƒÆ’Ã‚Â© le',
+                'CrÃƒÆ’Ã‚Â©ÃƒÆ’Ã‚Â© par'
             ], ';');
             
             foreach ($tasks as $task) {
@@ -1258,7 +1796,7 @@ public function update(Request $request, Task $task)
                     $task->due_date ? $task->due_date->format('d/m/Y H:i') : 'N/A',
                     $task->delivery_date ? $task->delivery_date->format('d/m/Y H:i') : 'N/A',
                     $task->estimated_hours ?? 0,
-                    number_format($task->estimated_cost ?? 0, 2, ',', ' ') . ' €',
+                    number_format($task->estimated_cost ?? 0, 2, ',', ' ') . ' ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬',
                     $task->country ?? 'N/A',
                     $task->location ?? 'N/A',
                     $task->contract_number ?? 'N/A',
@@ -1286,7 +1824,7 @@ public function update(Request $request, Task $task)
             \Log::error('Error exporting tasks: ' . $e->getMessage());
             
             return redirect()->back()
-                ->with('error', 'Erreur lors de l\'export des tâches');
+                ->with('error', 'Erreur lors de l\'export des tÃƒÆ’Ã‚Â¢ches');
         }
     }
 
@@ -1314,7 +1852,7 @@ public function update(Request $request, Task $task)
                 $totalFiles += $task->files->count();
                 
                 foreach ($task->files as $file) {
-                    $path = storage_path('app/' . $file->file_path);
+                    $path = storage_path('app/public/' . $this->toRelativeStoragePath($file->file_path));
                     if (file_exists($path)) {
                         unlink($path);
                     }
@@ -1332,7 +1870,7 @@ public function update(Request $request, Task $task)
             
             return response()->json([
                 'success' => true,
-                'message' => "{$count} tâche(s) et {$totalFiles} fichier(s) supprimé(s) avec succès",
+                'message' => "{$count} tÃƒÆ’Ã‚Â¢che(s) et {$totalFiles} fichier(s) supprimÃƒÆ’Ã‚Â©(s) avec succÃƒÆ’Ã‚Â¨s",
                 'deleted_ids' => $request->ids
             ]);
             
@@ -1365,7 +1903,7 @@ public function update(Request $request, Task $task)
                     'id' => $task->id,
                     'name' => $task->name,
                     'project_name' => $task->project->name ?? 'N/A',
-                    'user_name' => $task->user->name ?? 'Non assigné',
+                    'user_name' => $task->user->name ?? 'Non assignÃƒÆ’Ã‚Â©',
                     'due_date' => $task->due_date->format('d/m/Y H:i'),
                     'days_remaining' => now()->diffInDays($task->due_date, false) + 1,
                     'files_count' => $task->files_count,
@@ -1397,7 +1935,7 @@ public function update(Request $request, Task $task)
                     'id' => $task->id,
                     'name' => $task->name,
                     'project_name' => $task->project->name ?? 'N/A',
-                    'user_name' => $task->user->name ?? 'Non assigné',
+                    'user_name' => $task->user->name ?? 'Non assignÃƒÆ’Ã‚Â©',
                     'due_date' => $task->due_date->format('d/m/Y H:i'),
                     'days_overdue' => abs(now()->diffInDays($task->due_date, false)),
                     'files_count' => $task->files_count,
@@ -1506,7 +2044,7 @@ public function update(Request $request, Task $task)
                 'user_id' => Auth::id(),
                 'file_name' => $fileName,
                 'original_name' => $file->getClientOriginalName(),
-                'file_path' => $filePath,
+                'file_path' => $this->toPublicStorageUrl($filePath),
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
                 'file_extension' => $file->getClientOriginalExtension(),
@@ -1529,12 +2067,12 @@ public function update(Request $request, Task $task)
             if ($request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Fichier uploadé avec succès',
+                    'message' => 'Fichier uploadÃƒÆ’Ã‚Â© avec succÃƒÆ’Ã‚Â¨s',
                     'data' => $this->formatFileData($taskFile)
                 ]);
             }
 
-            return redirect()->back()->with('success', 'Fichier uploadé avec succès');
+            return redirect()->back()->with('success', 'Fichier uploadÃƒÆ’Ã‚Â© avec succÃƒÆ’Ã‚Â¨s');
 
         } catch (\Exception $e) {
             \Log::error('Error uploading file: ' . $e->getMessage());
@@ -1575,7 +2113,7 @@ public function update(Request $request, Task $task)
                         'user_id' => Auth::id(),
                         'file_name' => $fileName,
                         'original_name' => $file->getClientOriginalName(),
-                        'file_path' => $filePath,
+                        'file_path' => $this->toPublicStorageUrl($filePath),
                         'file_size' => $file->getSize(),
                         'mime_type' => $file->getMimeType(),
                         'file_extension' => $file->getClientOriginalExtension(),
@@ -1601,7 +2139,7 @@ public function update(Request $request, Task $task)
 
             return response()->json([
                 'success' => true,
-                'message' => count($uploadedFiles) . ' fichier(s) uploadé(s) avec succès',
+                'message' => count($uploadedFiles) . ' fichier(s) uploadÃƒÆ’Ã‚Â©(s) avec succÃƒÆ’Ã‚Â¨s',
                 'data' => $uploadedFiles,
                 'errors' => $errors
             ]);
@@ -1626,13 +2164,18 @@ public function update(Request $request, Task $task)
             abort(404);
         }
 
-        $path = storage_path('app/' . $file->file_path);
-
-        if (!file_exists($path)) {
-            abort(404, 'Fichier non trouvé');
+        $relativePath = $this->toRelativeStoragePath($file->file_path);
+        if (!$relativePath || !Storage::disk('public')->exists($relativePath)) {
+            abort(404, 'Fichier non trouvÃ©');
         }
 
-        return response()->download($path, $file->original_name);
+        $downloadName = $file->original_name ?: basename($relativePath);
+        $headers = [];
+        if (!empty($file->mime_type)) {
+            $headers['Content-Type'] = $file->mime_type;
+        }
+
+        return Storage::disk('public')->download($relativePath, $downloadName, $headers);
     }
 
     /**
@@ -1644,17 +2187,19 @@ public function update(Request $request, Task $task)
             abort(404);
         }
 
-        $path = storage_path('app/' . $file->file_path);
-
-        if (!file_exists($path)) {
+        $relativePath = $this->toRelativeStoragePath($file->file_path);
+        if (!$relativePath || !Storage::disk('public')->exists($relativePath)) {
             abort(404, 'Fichier non trouvé');
         }
 
-        return response()->file($path);
+        $publicUrl = filter_var($file->file_path, FILTER_VALIDATE_URL)
+            ? $file->file_path
+            : $this->toPublicStorageUrl($relativePath);
+
+        return redirect()->away($publicUrl);
     }
 
     /**
-     * Delete a file.
      */
     public function deleteFile(Request $request, Task $task, TaskFile $file)
     {
@@ -1665,7 +2210,7 @@ public function update(Request $request, Task $task)
         try {
             DB::beginTransaction();
 
-            $path = storage_path('app/' . $file->file_path);
+            $path = storage_path('app/public/' . $this->toRelativeStoragePath($file->file_path));
             if (file_exists($path)) {
                 unlink($path);
             }
@@ -1684,12 +2229,12 @@ public function update(Request $request, Task $task)
             if ($request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Fichier supprimé avec succès',
+                    'message' => 'Fichier supprimÃƒÆ’Ã‚Â© avec succÃƒÆ’Ã‚Â¨s',
                     'file_id' => $fileId
                 ]);
             }
 
-            return redirect()->back()->with('success', 'Fichier supprimé avec succès');
+            return redirect()->back()->with('success', 'Fichier supprimÃƒÆ’Ã‚Â© avec succÃƒÆ’Ã‚Â¨s');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1711,35 +2256,40 @@ public function update(Request $request, Task $task)
      * Get all files for a task.
      */
     public function getFiles(Task $task)
-    {
-        $files = $task->files()
-            ->with('user')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function($file) {
-                return $this->formatFileData($file);
-            });
+{
+    $files = $task->files()
+        ->with('user')
+        ->orderBy('created_at', 'desc')
+        ->get()
+        ->map(function($file) {
+            return $this->formatFileData($file);
+        });
 
-        $stats = [
-            'total' => $files->count(),
-            'total_size' => $this->formatBytes($task->files->sum('file_size')),
-            'images' => $task->files()->get()->filter(function($f) { 
-                return $this->isImage($f->file_extension); 
-            })->count(),
-            'documents' => $task->files()->get()->filter(function($f) { 
-                return in_array(strtolower($f->file_extension), ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx']); 
-            })->count(),
-            'public' => $task->files()->where('is_public', true)->count(),
-            'temporary' => $task->files()->where('is_temporary', true)->count(),
-            'expired' => $task->files()->where('expires_at', '<', now())->count(),
-        ];
+    $totalCount = $files->count();
+    
+    $stats = [
+        'total' => $totalCount,  // AJOUTER CETTE LIGNE
+        'total_files' => $totalCount,
+        'total_size' => $this->formatBytes($task->files->sum('file_size')),
+        'images' => $task->files()->get()->filter(function($f) { 
+            return $this->isImage($f->file_extension); 
+        })->count(),
+        'documents' => $task->files()->get()->filter(function($f) { 
+            return in_array(strtolower($f->file_extension), ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx']); 
+        })->count(),
+        'public' => $task->files()->where('is_public', true)->count(),
+        'temporary' => $task->files()->where('is_temporary', true)->count(),
+        'expired' => $task->files()->where('expires_at', '<', now())->count(),
+    ];
 
-        return response()->json([
-            'success' => true,
-            'data' => $files,
-            'stats' => $stats
-        ]);
-    }
+    return response()->json([
+        'success' => true,
+        'data' => $files,
+        'stats' => $stats,
+        'total_files' => $totalCount,
+        'total' => $totalCount,  // AJOUTER CETTE LIGNE POUR LA COMPATIBILITÃƒÆ’Ã¢â‚¬Â°
+    ]);
+}
 
     /**
      * Clean up expired temporary files.
@@ -1753,7 +2303,7 @@ public function update(Request $request, Task $task)
         $count = 0;
         foreach ($expiredFiles as $file) {
             try {
-                $path = storage_path('app/' . $file->file_path);
+                $path = storage_path('app/public/' . $this->toRelativeStoragePath($file->file_path));
                 if (file_exists($path)) {
                     unlink($path);
                 }
@@ -1770,7 +2320,7 @@ public function update(Request $request, Task $task)
 
         return response()->json([
             'success' => true,
-            'message' => "{$count} fichier(s) temporaire(s) expiré(s) nettoyé(s)"
+            'message' => "{$count} fichier(s) temporaire(s) expirÃƒÆ’Ã‚Â©(s) nettoyÃƒÆ’Ã‚Â©(s)"
         ]);
     }
 
@@ -1793,14 +2343,14 @@ public function update(Request $request, Task $task)
 
             return response()->json([
                 'success' => true,
-                'message' => 'Description mise à jour avec succès',
+                'message' => 'Description mise ÃƒÆ’Ã‚Â  jour avec succÃƒÆ’Ã‚Â¨s',
                 'data' => $this->formatFileData($file)
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour'
+                'message' => 'Erreur lors de la mise ÃƒÆ’Ã‚Â  jour'
             ], 500);
         }
     }
@@ -1820,19 +2370,45 @@ public function update(Request $request, Task $task)
 
             return response()->json([
                 'success' => true,
-                'message' => $file->is_public ? 'Fichier rendu public' : 'Fichier rendu privé',
+                'message' => $file->is_public ? 'Fichier rendu public' : 'Fichier rendu privÃƒÆ’Ã‚Â©',
                 'is_public' => $file->is_public
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour'
+                'message' => 'Erreur lors de la mise ÃƒÆ’Ã‚Â  jour'
             ], 500);
         }
     }
 
     // ==================== UTILITAIRES ====================
+
+    /**
+     * Build full public URL for a file stored on public disk.
+     */
+    private function toPublicStorageUrl(string $relativePath): string
+    {
+        return rtrim(config('app.url'), '/') . '/storage/' . ltrim($relativePath, '/');
+    }
+
+    /**
+     * Convert stored value (absolute URL or relative path) to relative path.
+     */
+    private function toRelativeStoragePath(?string $storedPath): string
+    {
+        if (!$storedPath) {
+            return '';
+        }
+
+        if (filter_var($storedPath, FILTER_VALIDATE_URL)) {
+            $urlPath = parse_url($storedPath, PHP_URL_PATH) ?: '';
+            $urlPath = preg_replace('#^/storage/#', '', $urlPath);
+            return ltrim((string) $urlPath, '/');
+        }
+
+        return ltrim((string) $storedPath, '/');
+    }
 
     /**
      * Format file data for API response.
@@ -1847,7 +2423,7 @@ public function update(Request $request, Task $task)
             'size' => $this->formatBytes($file->file_size),
             'icon' => $this->getFileIcon($file->file_extension),
             'extension' => $file->file_extension,
-            'uploaded_by' => $file->user->name ?? 'Système',
+            'uploaded_by' => $file->user->name ?? 'SystÃƒÆ’Ã‚Â¨me',
             'uploaded_at' => $file->created_at->format('d/m/Y H:i'),
             'description' => $file->description,
             'is_public' => $file->is_public,
@@ -1972,4 +2548,82 @@ public function update(Request $request, Task $task)
         
         return rmdir($dir);
     }
+
+    /**
+ * Get human-readable label for a field.
+ */
+private function getFieldLabel(string $field): string
+{
+    $labels = [
+        'name' => 'Nom',
+        'details' => 'Description',
+        'project_id' => 'Projet',
+        'user_id' => 'AssignÃƒÆ’Ã‚Â© ÃƒÆ’Ã‚Â ',
+        'status' => 'Statut',
+        'due_date' => 'Date d\'ÃƒÆ’Ã‚Â©chÃƒÆ’Ã‚Â©ance',
+        'delivery_date' => 'Date de livraison',
+        'estimated_hours' => 'Heures estimÃƒÆ’Ã‚Â©es',
+        'hourly_rate' => 'Taux horaire',
+        'country' => 'Pays',
+        'location' => 'Lieu',
+        'contract_number' => 'NumÃƒÆ’Ã‚Â©ro de contrat',
+        'contact_name' => 'Nom du contact',
+        'test_date' => 'Date de test',
+        'test_details' => 'DÃƒÆ’Ã‚Â©tails du test',
+        'integration_date' => 'Date d\'intÃƒÆ’Ã‚Â©gration',
+        'push_prod_date' => 'Date de mise en production',
+        'module_url' => 'URL du module',
+        'general_manager_id' => 'Manager gÃƒÆ’Ã‚Â©nÃƒÆ’Ã‚Â©ral',
+        'client_manager_id' => 'Manager client',
+    ];
+    
+    return $labels[$field] ?? $field;
 }
+
+/**
+ * Get formatted value for display.
+ */
+private function getFormattedValue(Task $task, string $field, $value): string
+{
+    if ($value === null || $value === '') {
+        return 'Non dÃƒÆ’Ã‚Â©fini';
+    }
+    
+    switch ($field) {
+        case 'project_id':
+            $project = Project::find($value);
+            return $project ? $project->name : 'N/A';
+        case 'user_id':
+            $user = User::find($value);
+            return $user ? $user->name : 'Non assignÃƒÆ’Ã‚Â©';
+        case 'general_manager_id':
+        case 'client_manager_id':
+            $user = User::find($value);
+            return $user ? $user->name : 'Non dÃƒÆ’Ã‚Â©fini';
+        case 'status':
+            $statuses = [
+                'pending' => 'En attente',
+                'in_progress' => 'En cours',
+                'test' => 'En test',
+                'integrated' => 'IntÃƒÆ’Ã‚Â©grÃƒÆ’Ã‚Â©',
+                'delivered' => 'LivrÃƒÆ’Ã‚Â©',
+                'approved' => 'ApprouvÃƒÆ’Ã‚Â©',
+                'cancelled' => 'AnnulÃƒÆ’Ã‚Â©',
+            ];
+            return $statuses[$value] ?? $value;
+        case 'due_date':
+        case 'delivery_date':
+        case 'test_date':
+        case 'integration_date':
+        case 'push_prod_date':
+            return $value ? Carbon::parse($value)->format('d/m/Y H:i') : 'Non dÃƒÆ’Ã‚Â©fini';
+        case 'estimated_hours':
+            return $value ? $value . ' h' : '0 h';
+        case 'hourly_rate':
+            return $value ? number_format($value, 2, ',', ' ') . ' ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬/h' : '0 ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬/h';
+        default:
+            return (string) $value;
+    }
+}
+}
+

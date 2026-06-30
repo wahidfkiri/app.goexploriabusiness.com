@@ -11,10 +11,10 @@
             </h1>
             
             <div class="page-actions">
-                <a href="{{ route('products.index') }}" class="btn btn-outline-secondary me-2">
+                <a href="{{ route('products.index', ['etablissement_id' => $etablissementId ?? request('etablissement_id')]) }}" class="btn btn-outline-secondary me-2">
                     <i class="fas fa-arrow-left me-2"></i>Retour à la liste
                 </a>
-                <a href="{{ route('products.show', $product->id) }}" class="btn btn-outline-info me-2">
+                <a href="{{ route('products.show', ['product' => $product->id, 'etablissement_id' => $etablissementId ?? request('etablissement_id')]) }}" class="btn btn-outline-info me-2">
                     <i class="fas fa-eye me-2"></i>Voir détails
                 </a>
                 <button type="button" class="btn btn-outline-primary" id="saveDraftBtn">
@@ -44,9 +44,10 @@
         </div>
 
         <!-- Main Form -->
-        <form id="productForm" enctype="multipart/form-data" method="POST" action="{{ route('products.update', $product->id) }}">
+        <form id="productForm" enctype="multipart/form-data" method="POST" action="{{ route('products.update', ['product' => $product->id, 'etablissement_id' => $etablissementId ?? request('etablissement_id')]) }}">
             @csrf
             @method('PUT')
+            <input type="hidden" name="etablissement_id" value="{{ $etablissementId ?? request('etablissement_id') }}">
             
             <!-- Step 1: Type & Category -->
             <div class="form-step active" id="step1-content">
@@ -509,19 +510,19 @@
                                     <div class="card-body">
                                         <div class="row">
                                             <div class="col-md-3">
-                                                <input type="text" class="form-control-modern" placeholder="Nom (ex: Rouge, XL)" name="variants[INDEX][name]" required>
+                                                <input type="text" class="form-control-modern" placeholder="Nom (ex: Rouge, XL)" name="variants[INDEX][name]" disabled>
                                             </div>
                                             <div class="col-md-2">
-                                                <input type="text" class="form-control-modern" placeholder="SKU" name="variants[INDEX][sku]">
+                                                <input type="text" class="form-control-modern" placeholder="SKU" name="variants[INDEX][sku]" disabled>
                                             </div>
                                             <div class="col-md-2">
-                                                <input type="number" step="0.01" class="form-control-modern" placeholder="Prix +" name="variants[INDEX][price_adjustment]" value="0">
+                                                <input type="number" step="0.01" class="form-control-modern" placeholder="Prix +" name="variants[INDEX][price_adjustment]" value="0" disabled>
                                             </div>
                                             <div class="col-md-2">
-                                                <input type="number" class="form-control-modern" placeholder="Stock" name="variants[INDEX][stock]" value="0">
+                                                <input type="number" class="form-control-modern" placeholder="Stock" name="variants[INDEX][stock]" value="0" disabled>
                                             </div>
                                             <div class="col-md-2">
-                                                <input type="file" class="form-control-modern" name="variants[INDEX][image]" accept="image/*">
+                                                <input type="file" class="form-control-modern" name="variants[INDEX][image]" accept="image/*" disabled>
                                             </div>
                                             <div class="col-md-1">
                                                 <button type="button" class="btn btn-danger btn-sm remove-variant">
@@ -529,7 +530,7 @@
                                                 </button>
                                             </div>
                                         </div>
-                                        <input type="hidden" name="variants[INDEX][attributes]" value='{"generated":true}'>
+                                        <input type="hidden" name="variants[INDEX][attributes]" value='{"generated":true}' disabled>
                                     </div>
                                 </div>
                             </div>
@@ -569,7 +570,7 @@
                                             <small class="text-muted">JPG, PNG, GIF max 2MB</small>
                                         </div>
                                         <div class="image-preview" style="{{ $product->main_image ? 'display: block;' : 'display: none;' }}">
-                                            <img src="{{ $product->main_image ? asset('storage/' . $product->main_image) : '' }}" alt="Preview">
+                                            <img src="{{ $product->main_image ? (\Illuminate\Support\Str::startsWith($product->main_image, ['http://', 'https://']) ? $product->main_image : asset('storage/' . $product->main_image)) : '' }}" alt="Preview">
                                             <button type="button" class="btn btn-sm btn-danger remove-image">
                                                 <i class="fas fa-times"></i>
                                             </button>
@@ -589,10 +590,15 @@
                                             <p>Cliquez pour ajouter plusieurs images</p>
                                         </div>
                                         <div class="gallery-preview" id="galleryPreview">
-                                            @if($product->gallery_images)
-                                                @foreach(json_decode($product->gallery_images) as $image)
+                                            @php
+                                                $galleryImages = is_array($product->gallery_images)
+                                                    ? $product->gallery_images
+                                                    : (json_decode($product->gallery_images ?? '[]', true) ?: []);
+                                            @endphp
+                                            @if(!empty($galleryImages))
+                                                @foreach($galleryImages as $image)
                                                 <div class="gallery-thumb">
-                                                    <img src="{{ asset('storage/' . $image) }}" alt="Gallery">
+                                                    <img src="{{ \Illuminate\Support\Str::startsWith($image, ['http://', 'https://']) ? $image : asset('storage/' . $image) }}" alt="Gallery">
                                                     <button type="button" class="btn btn-sm btn-danger remove-gallery-image" data-image="{{ $image }}">
                                                         <i class="fas fa-times"></i>
                                                     </button>
@@ -601,7 +607,7 @@
                                             @endif
                                         </div>
                                     </div>
-                                    <input type="hidden" name="existing_gallery_images" id="existing_gallery_images" value="{{ $product->gallery_images }}">
+                                    <input type="hidden" name="existing_gallery_images" id="existing_gallery_images" value='@json($galleryImages ?? [])'>
                                 </div>
                             </div>
                         </div>
@@ -769,6 +775,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const contextEtablissementId = @json((int) ($etablissementId ?? request('etablissement_id') ?? 0));
+            const contextQuery = contextEtablissementId > 0 ? ('?etablissement_id=' + contextEtablissementId) : '';
             // Initialize tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -1010,6 +1018,13 @@
                     div.innerHTML = html;
                     
                     const variantItem = div.firstElementChild;
+                    variantItem.querySelectorAll('input, select, textarea').forEach(field => {
+                        field.disabled = false;
+                    });
+                    const nameInput = variantItem.querySelector('input[name^="variants["][name$="[name]"]');
+                    if (nameInput) {
+                        nameInput.required = true;
+                    }
                     variantItem.querySelector('.remove-variant').addEventListener('click', function() {
                         variantItem.remove();
                     });
@@ -1187,7 +1202,7 @@
                             if (response.success) {
                                 showAlert('success', 'Produit mis à jour avec succès !');
                                 setTimeout(() => {
-                                    window.location.href = '{{ route("products.index") }}';
+                                    window.location.href = '{{ route("products.index") }}' + contextQuery;
                                 }, 1500);
                             } else {
                                 showAlert('danger', response.message || 'Erreur lors de la mise à jour');

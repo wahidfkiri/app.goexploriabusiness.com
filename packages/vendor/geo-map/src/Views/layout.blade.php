@@ -73,6 +73,8 @@
         this.currentLocation = null;
         this.places = [];
         this.categories = [];
+        this.categoryColors = {};
+        this.categoryIcons = {};
         this.selectedCategory = 'all';
         this.radius = 20;
         this.swiper = null;
@@ -231,12 +233,16 @@
         try {
             const response = await axios.get('/api/categories');
             this.categories = response.data;
+            this.categories.forEach(cat => {
+                this.categoryColors[cat.slug] = cat.color || '#718096';
+                this.categoryIcons[cat.slug] = cat.icon_class || 'fas fa-map-marker-alt';
+            });
             this.populateCategoryFilter();
         } catch (error) {
             console.error('Erreur lors du chargement des catégories:', error);
-            // Utiliser des catégories par défaut
-            this.categories = ['restaurant', 'hotel', 'museum', 'park', 'shopping', 'monument'];
-            this.populateCategoryFilter();
+            this.categories = [];
+            this.categoryColors = {};
+            this.categoryIcons = {};
         }
     }
     
@@ -248,10 +254,10 @@
         filter.innerHTML = '<option value="all">Toutes les catégories</option>';
         
         // Ajouter les catégories
-        this.categories.forEach(category => {
+        this.categories.forEach(cat => {
             const option = document.createElement('option');
-            option.value = category;
-            option.textContent = this.capitalizeFirstLetter(category);
+            option.value = cat.slug;
+            option.textContent = cat.name;
             filter.appendChild(option);
         });
     }
@@ -369,18 +375,30 @@
     
     createMarker(place) {
         // Créer une icône personnalisée
-        const icon = L.divIcon({
-            className: 'custom-marker',
-            html: `
-                <div class="marker-icon marker-${place.category}" 
-                     style="background: ${this.getCategoryColor(place.category)};">
-                    <i class="${this.getCategoryIcon(place.category)}"></i>
-                </div>
-            `,
-            iconSize: [40, 40],
-            iconAnchor: [20, 40],
-            popupAnchor: [0, -40]
-        });
+        let icon;
+        
+        // Utiliser l'icône personnalisée de la catégorie si disponible
+        if (place.category_icon_url) {
+            icon = L.icon({
+                iconUrl: place.category_icon_url,
+                iconSize: [32, 32],
+                iconAnchor: [16, 32],
+                popupAnchor: [0, -32]
+            });
+        } else {
+            icon = L.divIcon({
+                className: 'custom-marker',
+                html: `
+                    <div class="marker-icon marker-${place.category}" 
+                         style="background: ${this.getCategoryColor(place.category)};">
+                        <i class="${this.getCategoryIcon(place.category)}"></i>
+                    </div>
+                `,
+                iconSize: [40, 40],
+                iconAnchor: [20, 40],
+                popupAnchor: [0, -40]
+            });
+        }
         
         // Créer le marqueur
         const marker = L.marker([place.latitude, place.longitude], { 
@@ -403,29 +421,11 @@
     }
     
     getCategoryColor(category) {
-        const colors = {
-            restaurant: '#e53e3e',
-            hotel: '#38a169',
-            museum: '#805ad5',
-            park: '#d69e2e',
-            shopping: '#3182ce',
-            monument: '#dd6b20',
-            default: '#718096'
-        };
-        return colors[category] || colors.default;
+        return this.categoryColors?.[category] || '#718096';
     }
     
     getCategoryIcon(category) {
-        const icons = {
-            restaurant: 'fas fa-utensils',
-            hotel: 'fas fa-hotel',
-            museum: 'fas fa-landmark',
-            park: 'fas fa-tree',
-            shopping: 'fas fa-shopping-bag',
-            monument: 'fas fa-monument',
-            default: 'fas fa-map-marker-alt'
-        };
-        return icons[category] || icons.default;
+        return this.categoryIcons?.[category] || 'fas fa-map-marker-alt';
     }
     
     createPopupContent(place) {

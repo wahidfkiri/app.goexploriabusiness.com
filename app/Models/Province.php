@@ -13,6 +13,8 @@ class Province extends Model
 {
     use HasFactory, SoftDeletes, HasPage;
 
+    protected $connection = 'mysql';
+
     protected $fillable = [
         'name',
         'code',
@@ -24,6 +26,7 @@ class Province extends Model
         'area',
         'timezone',
         'flag',
+        'image',
         'description',
         'latitude',    // Ajouté
         'longitude',   // Ajouté
@@ -38,7 +41,7 @@ class Province extends Model
     ];
 
 
-    public function activities(): BelongsToMany
+    public function activities()
     {
         return $this->belongsToMany(Activity::class, 'activity_province')
                     ->withTimestamps();
@@ -52,7 +55,7 @@ class Province extends Model
 }
 
     // Relation avec le pays
-    public function country(): BelongsTo
+    public function country()
     {
         return $this->belongsTo(Country::class);
     }
@@ -145,6 +148,13 @@ public function getRegionsCountAttribute(): int
 public function villes(): HasMany
 {
     return $this->hasMany(Ville::class);
+}
+
+public function getImageUrlAttribute()
+{
+    if (!$this->image) return null;
+    if (str_starts_with($this->image, 'http')) return $this->image;
+    return asset('storage/' . $this->image);
 }
 
 }

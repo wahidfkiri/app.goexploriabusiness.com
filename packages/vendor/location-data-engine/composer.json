@@ -1,0 +1,26 @@
+{
+    "name": "vendor/location-data-engine",
+    "description": "Google Places driven location and business data engine for Laravel",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Vendor\\LocationDataEngine\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.3",
+        "illuminate/contracts": "^11.0",
+        "illuminate/support": "^11.0",
+        "illuminate/http": "^11.0",
+        "illuminate/queue": "^11.0",
+        "illuminate/database": "^11.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Vendor\\LocationDataEngine\\Providers\\LocationDataEngineServiceProvider"
+            ]
+        }
+    }
+}

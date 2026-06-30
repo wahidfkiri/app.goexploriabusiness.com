@@ -25,7 +25,7 @@
                         <li><a class="dropdown-item" href="#" id="exportCsv"><i class="fas fa-file-csv me-2 text-info"></i>CSV</a></li>
                     </ul>
                 </div>
-                <a href="{{ route('products.create') }}" class="btn btn-primary">
+                <a href="{{ route('products.create', ['etablissement_id' => $etablissementId ?? request('etablissement_id')]) }}" class="btn btn-primary">
                     <i class="fas fa-plus-circle me-2"></i>Nouveau Produit/Service
                 </a>
             </div>
@@ -322,6 +322,10 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            const contextEtablissementId = @json((int) ($etablissementId ?? request('etablissement_id') ?? 0));
+            const contextQuery = contextEtablissementId > 0 ? ('?etablissement_id=' + contextEtablissementId) : '';
+            window.__productsContextEtablissementId = contextEtablissementId;
+            window.__productsContextQuery = contextQuery;
             setupAjax();
             loadProducts();
             loadStatistics();
@@ -355,6 +359,7 @@
                 data: {
                     page: page,
                     search: searchTerm,
+                    etablissement_id: window.__productsContextEtablissementId || '',
                     ...filters,
                     ajax: true
                 },
@@ -381,6 +386,9 @@
             $.ajax({
                 url: '{{ route("products.statistics") }}',
                 type: 'GET',
+                data: {
+                    etablissement_id: window.__productsContextEtablissementId || ''
+                },
                 success: function(response) {
                     if (response.success) {
                         const stats = response.data;
@@ -507,7 +515,7 @@
                                     onclick="viewProduct(${product.id})">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <a href="/ecommerce/products/${product.id}/edit"
+                            <a href="/ecommerce/products/${product.id}/edit${window.__productsContextQuery || ''}"
                                class="action-btn-modern edit-btn-modern" title="Modifier">
                                 <i class="fas fa-edit"></i>
                             </a>
@@ -789,7 +797,7 @@
             }
             
             $.ajax({
-                url: `/products/${productId}/duplicate`,
+                url: `/ecommerce/products/${productId}/duplicate${window.__productsContextQuery || ''}`,
                 type: 'POST',
                 success: function(response) {
                     if (response.success) {
@@ -879,7 +887,7 @@
             
             // Send DELETE request
             $.ajax({
-                url: `/ecommerce/products/${productId}`,
+                url: `/ecommerce/products/${productId}${window.__productsContextQuery || ''}`,
                 type: 'DELETE',
                 dataType: 'json',
                 success: function(response) {

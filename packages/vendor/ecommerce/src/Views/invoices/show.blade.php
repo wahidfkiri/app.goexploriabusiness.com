@@ -1,617 +1,181 @@
 @extends('layouts.app')
 
+@php
+    $logoUrl = data_get($invoice->metadata, 'logo_url') ?: ($billingSettings->billing_logo_url ?? null);
+@endphp
+
 @section('content')
-    <!-- MAIN CONTENT -->
-    <main class="dashboard-content">
-        <!-- Page Header -->
-        <div class="page-header">
-            <h1 class="page-title">
-                <span class="page-title-icon"><i class="fas fa-file-invoice"></i></span>
-                Facture #{{ $invoice->invoice_number }}
-            </h1>
-            
-            <div class="page-actions">
-                <a href="{{ route('invoices.index') }}" class="btn btn-outline-secondary me-2">
-                    <i class="fas fa-arrow-left me-2"></i>Retour
-                </a>
-                
-                @if(!in_array($invoice->status, ['payee', 'annulee']))
-                    <a href="{{ route('invoices.edit', $invoice->id) }}" class="btn btn-primary me-2">
-                        <i class="fas fa-edit me-2"></i>Modifier
-                    </a>
+<main class="dashboard-content document-show">
+    <div class="doc-head">
+        <div>
+            <p class="doc-kicker">Facture</p>
+            <h1>{{ $invoice->invoice_number }}</h1>
+            <span class="status-pill status-{{ $invoice->status }}">{{ $invoice->status_label }}</span>
+        </div>
+        <div class="doc-actions">
+            <a href="{{ route('invoices.index') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Retour</a>
+            @if(!in_array($invoice->status, ['payee', 'annulee'], true))
+                <a href="{{ route('invoices.edit', $invoice) }}" class="btn btn-primary"><i class="fas fa-edit me-2"></i>Modifier</a>
+            @endif
+            <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-outline-primary"><i class="fas fa-file-pdf me-2"></i>PDF</a>
+            @if($invoice->status !== 'payee')
+                <button class="btn btn-success" id="markPaidBtn"><i class="fas fa-check me-2"></i>Marquer payée</button>
+            @endif
+            <button class="btn btn-outline-primary" id="sendInvoiceBtn"><i class="fas fa-paper-plane me-2"></i>Envoyer</button>
+        </div>
+    </div>
+
+    <section class="doc-card">
+        <div class="doc-top">
+            <div>
+                @if($logoUrl)
+                    <img src="{{ $logoUrl }}" alt="Logo" class="doc-logo">
                 @endif
-                
-                <a href="{{ route('invoices.pdf', $invoice->id) }}" class="btn btn-outline-primary me-2">
-                    <i class="fas fa-download me-2"></i>PDF
-                </a>
-                
-                @if($invoice->status !== 'payee')
-                    <button class="btn btn-success me-2" onclick="markAsPaid()">
-                        <i class="fas fa-check-circle me-2"></i>Marquer payée
-                    </button>
-                @endif
-                
-                @if($invoice->status === 'envoyee' || $invoice->status === 'en_attente')
-                    <button class="btn btn-warning me-2" onclick="sendReminder()">
-                        <i class="fas fa-bell me-2"></i>Relance
-                    </button>
-                @endif
+                <h2>{{ $invoice->etablissement->nom ?? config('app.name') }}</h2>
+                <p>{{ $invoice->etablissement->adresse ?? '' }}</p>
+            </div>
+            <div class="doc-meta">
+                <div><span>Date</span><strong>{{ optional($invoice->invoice_date)->format('d/m/Y') }}</strong></div>
+                <div><span>{{ $billingSettings->invoice_due_label ?? 'Échéance' }}</span><strong>{{ optional($invoice->due_date)->format('d/m/Y') }}</strong></div>
+                <div><span>Reste à payer</span><strong>{{ number_format((float) $invoice->remaining_amount, 2, ',', ' ') }} $</strong></div>
             </div>
         </div>
 
-        <!-- Status Banner -->
-        <div class="status-banner status-{{ $invoice->status }}">
-            <div class="status-icon">
-                @switch($invoice->status)
-                    @case('brouillon')
-                        <i class="fas fa-pen"></i>
-                        @break
-                    @case('envoyee')
-                        <i class="fas fa-paper-plane"></i>
-                        @break
-                    @case('en_attente')
-                        <i class="fas fa-clock"></i>
-                        @break
-                    @case('payee')
-                        <i class="fas fa-check-circle"></i>
-                        @break
-                    @case('partiellement_payee')
-                        <i class="fas fa-adjust"></i>
-                        @break
-                    @case('en_retard')
-                        <i class="fas fa-exclamation-triangle"></i>
-                        @break
-                    @case('annulee')
-                        <i class="fas fa-times-circle"></i>
-                        @break
-                @endswitch
-            </div>
-            <div class="status-content">
-                <h3>Statut: {{ $invoice->status_label }}</h3>
-                @if($invoice->is_overdue)
-                    <p class="text-danger">Cette facture est en retard de paiement</p>
-                @endif
-            </div>
+        <div class="client-box">
+            <span>Facturé à</span>
+            <strong>{{ $invoice->client_name }}</strong>
+            <p>{{ $invoice->client_address }} {{ $invoice->client_zipcode }} {{ $invoice->client_city }} {{ $invoice->client_country }}</p>
         </div>
 
-        <!-- Invoice Content -->
-        <div class="invoice-container">
-            <!-- Header -->
-            <div class="invoice-header">
-                <div class="company-info">
-                    <h2>{{ config('app.name') }}</h2>
-                    <p>{{ auth()->user()->etablissement->adresse ?? '' }}</p>
-                    <p>{{ auth()->user()->etablissement->code_postal ?? '' }} {{ auth()->user()->etablissement->ville ?? '' }}</p>
-                    <p>Tél: {{ auth()->user()->etablissement->telephone ?? '' }}</p>
-                    <p>Email: {{ auth()->user()->etablissement->email_contact ?? '' }}</p>
-                </div>
-                
-                <div class="invoice-info">
-                    <h1>FACTURE</h1>
-                    <p><strong>N° {{ $invoice->invoice_number }}</strong></p>
-                    <p>Date d'émission: {{ $invoice->invoice_date->format('d/m/Y') }}</p>
-                    <p>Date d'échéance: {{ $invoice->due_date->format('d/m/Y') }}</p>
-                </div>
-            </div>
-
-            <!-- Client Info -->
-            <div class="client-section">
-                <h4>Facturer à :</h4>
-                <div class="client-details">
-                    <p><strong>{{ $invoice->client_name }}</strong></p>
-                    <p>{{ $invoice->client_address }}</p>
-                    <p>{{ $invoice->client_zipcode }} {{ $invoice->client_city }}</p>
-                    <p>{{ $invoice->client_country }}</p>
-                    @if($invoice->client_vat_number)
-                        <p>TVA: {{ $invoice->client_vat_number }}</p>
-                    @endif
-                </div>
-            </div>
-
-            <!-- Invoice Lines -->
-            <div class="invoice-lines">
-                <table class="invoice-table">
-                    <thead>
+        <div class="table-wrap">
+            <table class="doc-lines">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th class="text-end">Qté</th>
+                        <th class="text-end">Prix</th>
+                        <th class="text-end">Taxe</th>
+                        <th class="text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($invoice->lines as $line)
                         <tr>
-                            <th>Description</th>
-                            <th class="text-center">Quantité</th>
-                            <th class="text-right">Prix unitaire</th>
-                            <th class="text-right">TVA</th>
-                            <th class="text-right">Total HT</th>
-                            <th class="text-right">Total TTC</th>
+                            <td>
+                                <strong>{{ $line->description }}</strong>
+                                @if($line->detailed_description)
+                                    <div class="muted">{{ $line->detailed_description }}</div>
+                                @endif
+                            </td>
+                            <td class="text-end">{{ $line->quantity }}</td>
+                            <td class="text-end">{{ number_format((float) $line->unit_price, 2, ',', ' ') }} $</td>
+                            <td class="text-end">{{ number_format((float) $line->tax_amount, 2, ',', ' ') }} $</td>
+                            <td class="text-end"><strong>{{ number_format((float) $line->total, 2, ',', ' ') }} $</strong></td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($invoice->lines as $line)
-                        <tr>
-                            <td>{{ $line->description }}</td>
-                            <td class="text-center">{{ $line->quantity }}</td>
-                            <td class="text-right">{{ number_format($line->unit_price, 2) }} €</td>
-                            <td class="text-right">{{ $line->tax_rate }}%</td>
-                            <td class="text-right">{{ number_format($line->subtotal, 2) }} €</td>
-                            <td class="text-right">{{ number_format($line->total, 2) }} €</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Summary -->
-            <div class="invoice-summary">
-                <div class="summary-item">
-                    <span>Sous-total HT</span>
-                    <span>{{ number_format($invoice->subtotal, 2) }} €</span>
-                </div>
-                
-                @if($invoice->discount_percentage > 0)
-                <div class="summary-item">
-                    <span>Remise ({{ $invoice->discount_percentage }}%)</span>
-                    <span>- {{ number_format($invoice->discount_amount, 2) }} €</span>
-                </div>
-                @endif
-                
-                @if($invoice->shipping_fees > 0)
-                <div class="summary-item">
-                    <span>Frais de livraison</span>
-                    <span>{{ number_format($invoice->shipping_fees, 2) }} €</span>
-                </div>
-                @endif
-                
-                @if($invoice->administration_fees > 0)
-                <div class="summary-item">
-                    <span>Frais d'administration</span>
-                    <span>{{ number_format($invoice->administration_fees, 2) }} €</span>
-                </div>
-                @endif
-                
-                <div class="summary-item">
-                    <span>Total TVA</span>
-                    <span>{{ number_format($invoice->tax_total, 2) }} €</span>
-                </div>
-                
-                <div class="summary-item total">
-                    <span>Total TTC</span>
-                    <span>{{ number_format($invoice->total, 2) }} €</span>
-                </div>
-                
-                @if($invoice->paid_amount > 0)
-                <div class="summary-item paid">
-                    <span>Déjà payé</span>
-                    <span>- {{ number_format($invoice->paid_amount, 2) }} €</span>
-                </div>
-                
-                <div class="summary-item remaining">
-                    <span>Reste à payer</span>
-                    <span>{{ number_format($invoice->remaining_amount, 2) }} €</span>
-                </div>
-                @endif
-            </div>
-
-            <!-- Payment Info -->
-            @if($invoice->payments->count() > 0)
-            <div class="payments-section">
-                <h4>Paiements reçus</h4>
-                <table class="payments-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Référence</th>
-                            <th>Méthode</th>
-                            <th class="text-right">Montant</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($invoice->payments as $payment)
-                        <tr>
-                            <td>{{ $payment->payment_date->format('d/m/Y') }}</td>
-                            <td>{{ $payment->payment_reference }}</td>
-                            <td>{{ ucfirst($payment->method) }}</td>
-                            <td class="text-right">{{ number_format($payment->amount, 2) }} €</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-            @endif
-
-            <!-- Notes & Footer -->
-            @if($invoice->notes)
-            <div class="notes-section">
-                <h4>Notes</h4>
-                <p>{{ $invoice->notes }}</p>
-            </div>
-            @endif
-            
-            @if($invoice->footer)
-            <div class="footer-section">
-                <p>{{ $invoice->footer }}</p>
-            </div>
-            @endif
-
-            <!-- Bank Details -->
-            <div class="bank-details">
-                <h4>Coordonnées bancaires</h4>
-                @php
-                    $bank = \App\Models\BankDetail::where('etablissement_id', auth()->user()->etablissement_id)
-                        ->where('is_default', true)
-                        ->first();
-                @endphp
-                
-                @if($bank)
-                <p>IBAN: {{ $bank->iban }}</p>
-                <p>BIC: {{ $bank->swift }}</p>
-                <p>Titulaire: {{ $bank->account_holder }}</p>
-                <p>Banque: {{ $bank->bank_name }}</p>
-                @endif
-            </div>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
 
-        <!-- Related Invoices -->
-        @if($relatedInvoices->count() > 0)
-        <div class="related-invoices">
-            <h4>Autres factures pour ce client</h4>
+        <div class="doc-bottom">
+            <div class="notes">
+                @if($invoice->notes)
+                    <h3>Note</h3>
+                    <p>{{ $invoice->notes }}</p>
+                @endif
+                @if($invoice->footer)
+                    <h3>Conditions</h3>
+                    <p>{{ $invoice->footer }}</p>
+                @endif
+            </div>
+            <div class="totals">
+                <div><span>Sous-total</span><strong>{{ number_format((float) $invoice->subtotal, 2, ',', ' ') }} $</strong></div>
+                <div><span>Remise</span><strong>-{{ number_format((float) $invoice->discount_amount, 2, ',', ' ') }} $</strong></div>
+                <div><span>Taxes</span><strong>{{ number_format((float) $invoice->tax_total, 2, ',', ' ') }} $</strong></div>
+                <div><span>Frais</span><strong>{{ number_format((float) $invoice->shipping_fees + (float) $invoice->administration_fees, 2, ',', ' ') }} $</strong></div>
+                <div class="grand"><span>Total</span><strong>{{ number_format((float) $invoice->total, 2, ',', ' ') }} $</strong></div>
+            </div>
+        </div>
+    </section>
+
+    @if($relatedInvoices->count())
+        <section class="doc-card compact">
+            <h2>Autres factures du client</h2>
             <div class="related-list">
                 @foreach($relatedInvoices as $related)
-                <a href="{{ route('invoices.show', $related->id) }}" class="related-item">
-                    <span class="related-number">{{ $related->invoice_number }}</span>
-                    <span class="related-date">{{ $related->invoice_date->format('d/m/Y') }}</span>
-                    <span class="related-amount">{{ number_format($related->total, 2) }} €</span>
-                    <span class="badge bg-{{ $related->status_badge }}">{{ $related->status_label }}</span>
-                </a>
+                    <a href="{{ route('invoices.show', $related) }}">
+                        <strong>{{ $related->invoice_number }}</strong>
+                        <span>{{ number_format((float) $related->total, 2, ',', ' ') }} $</span>
+                    </a>
                 @endforeach
             </div>
-        </div>
-        @endif
-    </main>
+        </section>
+    @endif
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <div id="docToastHost" class="doc-toast-host"></div>
+</main>
 
-    <script>
-        function markAsPaid() {
-            if (!confirm('Marquer cette facture comme payée ?')) return;
-            
-            $.ajax({
-                url: '{{ route("invoices.mark-paid", $invoice->id) }}',
-                type: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}'
-                },
-                success: function(response) {
-                    if (response.success) {
-                        showAlert('success', response.message);
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1500);
-                    } else {
-                        showAlert('danger', response.message);
-                    }
-                },
-                error: function() {
-                    showAlert('danger', 'Erreur lors de l\'opération');
-                }
-            });
-        }
+<style>
+    .document-show { padding: 28px; background: #f3f6fa; min-height: calc(100vh - 72px); color: #172033; }
+    .doc-head { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 22px; padding: 20px; border: 1px solid #dbe3ee; border-radius: 8px; background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%); box-shadow: 0 14px 32px rgba(15, 23, 42, .06); }
+    .doc-head h1 { margin: 0 0 8px; font-size: 30px; font-weight: 850; color: #0f172a; }
+    .doc-kicker { margin: 0 0 5px; color: #2563eb; font-size: 12px; font-weight: 850; text-transform: uppercase; }
+    .doc-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: flex-end; }
+    .doc-actions .btn { min-height: 40px; border-radius: 7px; font-weight: 750; }
+    .doc-card { background: #fff; border: 1px solid #dbe3ee; border-radius: 8px; padding: 26px; box-shadow: 0 12px 28px rgba(15, 23, 42, .05); margin-bottom: 16px; }
+    .doc-card.compact { padding: 18px; }
+    .doc-card.compact h2 { font-size: 18px; margin: 0 0 12px; font-weight: 850; }
+    .doc-top { display: flex; justify-content: space-between; gap: 22px; padding-bottom: 22px; border-bottom: 1px solid #e2e8f0; }
+    .doc-top h2 { margin-bottom: 6px; font-weight: 850; color: #0f172a; }
+    .doc-logo { max-width: 160px; max-height: 92px; object-fit: contain; margin-bottom: 14px; }
+    .doc-meta { display: grid; gap: 10px; min-width: 280px; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fbfdff; }
+    .doc-meta div, .totals div { display: flex; justify-content: space-between; gap: 18px; }
+    .doc-meta span, .totals span, .client-box span, .muted { color: #64748b; }
+    .doc-meta strong { color: #0f172a; }
+    .client-box { margin: 22px 0; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; }
+    .client-box strong { display: block; margin-top: 4px; font-size: 19px; color: #0f172a; }
+    .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+    .doc-lines { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .doc-lines th { color: #64748b; font-size: 11px; text-transform: uppercase; padding: 13px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; letter-spacing: .02em; }
+    .doc-lines td { padding: 14px; border-bottom: 1px solid #eef2f7; vertical-align: top; color: #334155; }
+    .doc-lines tbody tr:last-child td { border-bottom: 0; }
+    .doc-bottom { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; margin-top: 22px; }
+    .notes h3 { font-size: 14px; margin: 0 0 7px; font-weight: 850; color: #0f172a; text-transform: uppercase; }
+    .notes p { white-space: pre-line; color: #475569; }
+    .totals { display: grid; gap: 10px; padding: 16px; border-radius: 8px; background: #fbfdff; border: 1px solid #e2e8f0; align-self: start; }
+    .totals .grand { border-top: 1px solid #dbe4f0; padding-top: 13px; font-size: 20px; font-weight: 850; color: #0f766e; }
+    .status-pill { display: inline-flex; padding: 6px 10px; border-radius: 999px; font-weight: 850; font-size: 12px; background: #e2e8f0; color: #334155; }
+    .status-payee { background: #dcfce7; color: #166534; }
+    .status-envoyee, .status-en_attente { background: #dbeafe; color: #1d4ed8; }
+    .status-annulee { background: #e5e7eb; color: #374151; }
+    .related-list { display: grid; gap: 8px; }
+    .related-list a { display: flex; justify-content: space-between; color: #172033; text-decoration: none; padding: 11px; border-radius: 7px; background: #f8fafc; border: 1px solid #e2e8f0; }
+    .doc-toast-host { position: fixed; right: 20px; bottom: 20px; z-index: 1080; display: grid; gap: 10px; }
+    .doc-toast { padding: 12px 14px; border-radius: 8px; color: #fff; background: #16a34a; box-shadow: 0 15px 30px rgba(15, 23, 42, .18); min-width: 240px; font-weight: 700; }
+    .doc-toast.error { background: #dc2626; }
+    @media (max-width: 900px) { .document-show { padding: 14px; } .doc-head, .doc-top, .doc-bottom { display: grid; grid-template-columns: 1fr; } .doc-meta { min-width: 0; } }
+</style>
 
-        function sendReminder() {
-            if (!confirm('Envoyer une relance au client ?')) return;
-            
-            $.ajax({
-                url: '{{ route("invoices.send", $invoice->id) }}',
-                type: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}'
-                },
-                success: function(response) {
-                    if (response.success) {
-                        showAlert('success', 'Relance envoyée avec succès');
-                    } else {
-                        showAlert('danger', response.message);
-                    }
-                },
-                error: function() {
-                    showAlert('danger', 'Erreur lors de l\'envoi');
-                }
-            });
-        }
-
-        function showAlert(type, message) {
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type} alert-custom-modern alert-dismissible fade show`;
-            alert.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.body.appendChild(alert);
-            
-            setTimeout(() => {
-                alert.remove();
-            }, 3000);
-        }
-    </script>
-
-    <style>
-        /* Invoice Show Specific Styles */
-        .status-banner {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            color: white;
-        }
-
-        .status-banner.status-brouillon { background: linear-gradient(135deg, #6c757d, #5a6268); }
-        .status-banner.status-envoyee { background: linear-gradient(135deg, #17a2b8, #138496); }
-        .status-banner.status-en_attente { background: linear-gradient(135deg, #ffc107, #e0a800); }
-        .status-banner.status-payee { background: linear-gradient(135deg, #28a745, #218838); }
-        .status-banner.status-partiellement_payee { background: linear-gradient(135deg, #007bff, #0069d9); }
-        .status-banner.status-en_retard { background: linear-gradient(135deg, #dc3545, #c82333); }
-        .status-banner.status-annulee { background: linear-gradient(135deg, #343a40, #23272b); }
-
-        .status-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-        }
-
-        .status-content h3 {
-            margin: 0;
-            font-size: 1.5rem;
-        }
-
-        .status-content p {
-            margin: 5px 0 0;
-            opacity: 0.9;
-        }
-
-        .invoice-container {
-            background: white;
-            border-radius: 12px;
-            padding: 40px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            margin-bottom: 30px;
-        }
-
-        .invoice-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .company-info h2 {
-            margin: 0 0 10px;
-            color: var(--primary-color);
-        }
-
-        .company-info p {
-            margin: 5px 0;
-            color: #666;
-        }
-
-        .invoice-info {
-            text-align: right;
-        }
-
-        .invoice-info h1 {
-            font-size: 2.5rem;
-            color: var(--primary-color);
-            margin: 0 0 10px;
-        }
-
-        .invoice-info p {
-            margin: 5px 0;
-            font-size: 1.1rem;
-        }
-
-        .client-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        .client-section h4 {
-            margin: 0 0 15px;
-            color: #333;
-        }
-
-        .client-details p {
-            margin: 5px 0;
-        }
-
-        .invoice-lines {
-            margin-bottom: 30px;
-            overflow-x: auto;
-        }
-
-        .invoice-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .invoice-table th {
-            background: #f8f9fa;
-            padding: 12px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .invoice-table td {
-            padding: 12px;
-            border-bottom: 1px solid #eaeaea;
-        }
-
-        .invoice-table .text-center {
-            text-align: center;
-        }
-
-        .invoice-table .text-right {
-            text-align: right;
-        }
-
-        .invoice-summary {
-            width: 400px;
-            margin-left: auto;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px dashed #dee2e6;
-        }
-
-        .summary-item.total {
-            font-weight: 700;
-            font-size: 1.2rem;
-            border-bottom: 2px solid #333;
-            padding: 15px 0;
-            margin-top: 10px;
-        }
-
-        .summary-item.paid {
-            color: #28a745;
-        }
-
-        .summary-item.remaining {
-            font-weight: 600;
-            color: #ef476f;
-        }
-
-        .payments-section {
-            margin-top: 30px;
-        }
-
-        .payments-section h4 {
-            margin-bottom: 15px;
-        }
-
-        .payments-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .payments-table th {
-            background: #f8f9fa;
-            padding: 10px;
-            text-align: left;
-        }
-
-        .payments-table td {
-            padding: 10px;
-            border-bottom: 1px solid #eaeaea;
-        }
-
-        .notes-section, .footer-section {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        .notes-section h4, .footer-section h4 {
-            margin-bottom: 10px;
-        }
-
-        .bank-details {
-            margin-top: 30px;
-            padding: 20px;
-            background: #e9ecef;
-            border-radius: 8px;
-        }
-
-        .bank-details h4 {
-            margin-bottom: 15px;
-        }
-
-        .bank-details p {
-            margin: 5px 0;
-            font-family: monospace;
-            font-size: 1.1rem;
-        }
-
-        .related-invoices {
-            margin-top: 30px;
-        }
-
-        .related-invoices h4 {
-            margin-bottom: 15px;
-        }
-
-        .related-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .related-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            text-decoration: none;
-            color: #333;
-            transition: all 0.3s;
-        }
-
-        .related-item:hover {
-            background: #e9ecef;
-            transform: translateX(5px);
-        }
-
-        .related-number {
-            font-weight: 600;
-            min-width: 150px;
-        }
-
-        .related-date {
-            color: #666;
-            min-width: 100px;
-        }
-
-        .related-amount {
-            font-weight: 600;
-            color: #06b48a;
-            min-width: 100px;
-        }
-
-        @media print {
-            .page-actions, .status-banner, .related-invoices {
-                display: none !important;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .invoice-header {
-                flex-direction: column;
-                gap: 20px;
-            }
-            
-            .invoice-info {
-                text-align: left;
-            }
-            
-            .invoice-summary {
-                width: 100%;
-            }
-            
-            .related-item {
-                flex-wrap: wrap;
-            }
-        }
-    </style>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const csrf = @json(csrf_token());
+    const toast = (message, type = 'success') => {
+        const host = document.getElementById('docToastHost');
+        const item = document.createElement('div');
+        item.className = `doc-toast ${type}`;
+        item.textContent = message;
+        host.appendChild(item);
+        setTimeout(() => item.remove(), 4200);
+    };
+    const post = async (url) => {
+        const response = await fetch(url, { method: 'POST', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf } });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) throw new Error(payload.message || 'Action impossible.');
+        toast(payload.message || 'Action effectuée.');
+        setTimeout(() => window.location.reload(), 600);
+    };
+    document.getElementById('markPaidBtn')?.addEventListener('click', () => post(@json(route('invoices.mark-paid', $invoice))).catch(error => toast(error.message, 'error')));
+    document.getElementById('sendInvoiceBtn')?.addEventListener('click', () => post(@json(route('invoices.send', $invoice))).catch(error => toast(error.message, 'error')));
+});
+</script>
 @endsection

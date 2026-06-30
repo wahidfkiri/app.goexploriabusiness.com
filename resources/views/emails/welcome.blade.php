@@ -75,7 +75,9 @@
         <div class="credentials">
             <h3>Vos identifiants de connexion :</h3>
             <p><strong>Email :</strong> {{ $data['email'] }}</p>
+            @if(isset($data['password']))
             <p><strong>Mot de passe :</strong> {{ $data['password'] }}</p>
+            @endif
         </div>
         
         <p>Vous pouvez vous connecter dès maintenant en cliquant sur le bouton ci-dessous :</p>

@@ -276,7 +276,7 @@
                         @if($project->client)
                         <div class="info-item mt-3 pt-3 border-top">
                             <div class="info-value">
-                                <a href="{{ route('etablissements.show', $project->client_id) }}" class="btn btn-outline-primary btn-sm w-100">
+                                <a href="{{ route('etablissements.show') }}" class="btn btn-outline-primary btn-sm w-100">
                                     <i class="fas fa-building me-2"></i>Voir la fiche client
                                 </a>
                             </div>
@@ -493,14 +493,14 @@
                                 @endforeach
                             </div>
                             
-                            @if($project->tasks->count() > 5)
+                            <!-- @if($project->tasks->count() > 5)
                                 <div class="text-center p-3 border-top">
                                     <a href="{{ route('projects.tasks', $project) }}" class="btn btn-link">
                                         Voir toutes les tâches ({{ $project->tasks->count() }})
                                         <i class="fas fa-arrow-right ms-2"></i>
                                     </a>
                                 </div>
-                            @endif
+                            @endif -->
                         @else
                             <div class="empty-state-modern p-5">
                                 <div class="empty-icon-modern">
@@ -578,7 +578,7 @@
         </div>
     </main>
 
-    <!-- CREATE TASK MODAL -->
+  <!-- CREATE TASK MODAL -->
 <div class="modal fade" id="createTaskModal" tabindex="-1" aria-labelledby="createTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -681,7 +681,7 @@
                                         <p class="text-muted mb-2">ou cliquez pour sélectionner</p>
                                         <small class="text-muted">Taille max: 10MB par fichier</small>
                                     </div>
-                                    <input type="file" class="file-input" id="create_task_files" name="files[]" multiple style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip">
+                                    <!-- SUPPRIMÉ : input en double -->
                                 </div>
 
                                 <!-- Liste des fichiers sélectionnés -->
@@ -788,7 +788,7 @@
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="edit-files-tab" data-bs-toggle="tab" data-bs-target="#edit-files" type="button" role="tab">
                                 <i class="fas fa-paperclip me-2"></i>Fichiers
-                                <span class="badge bg-primary ms-2" id="filesCount">0</span>
+                                <span class="badge bg-primary ms-2" id="filesCountEdit">0</span>
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -878,7 +878,7 @@
                                             <p class="text-muted mb-2">ou cliquez pour sélectionner</p>
                                             <small class="text-muted">Taille max: 10MB par fichier</small>
                                         </div>
-                                        <input type="file" class="file-input" id="edit_task_files" name="new_files[]" multiple style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip">
+                                        <!-- SUPPRIMÉ : input en double -->
                                     </div>
 
                                     <!-- Liste des nouveaux fichiers sélectionnés -->
@@ -1898,68 +1898,83 @@
     // ============================================
     class FileManager {
         constructor(context) {
-            this.context = context; // 'create', 'edit', ou 'project'
-            this.selectedFiles = [];
-            this.existingFiles = [];
-            this.maxSize = 10 * 1024 * 1024; // 10MB
-            this.allowedTypes = [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'application/vnd.ms-powerpoint',
-                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                'text/plain',
-                'image/jpeg',
-                'image/png',
-                'image/gif',
-                'application/zip',
-                'application/x-zip-compressed'
-            ];
-            
-            this.init();
+        this.context = context; // 'create', 'edit', ou 'project'
+        this.selectedFiles = [];
+        this.existingFiles = [];
+        this.maxSize = 10 * 1024 * 1024; // 10MB
+        this.allowedTypes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'application/zip',
+            'application/x-zip-compressed'
+        ];
+        
+        this.init();
+    }
+    
+    init() {
+        this.dropzone = document.getElementById(`${this.context}TaskDropzone`) || 
+                       document.getElementById(`${this.context}FileDropzone`);
+        
+        // Créer l'input de fichier dynamiquement (UN SEUL)
+        const inputId = `${this.context}_task_files_input`;
+        let fileInput = document.getElementById(inputId);
+        
+        if (!fileInput) {
+            fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.id = inputId;
+            fileInput.name = 'files[]';
+            fileInput.multiple = true;
+            fileInput.style.display = 'none';
+            fileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip';
+            document.body.appendChild(fileInput);
         }
         
-        init() {
-            this.dropzone = document.getElementById(`${this.context}TaskDropzone`) || 
-                           document.getElementById(`${this.context}FileDropzone`);
-            this.fileInput = document.getElementById(`${this.context}_task_files`) || 
-                            document.getElementById(`${this.context}_files`);
-            this.selectedList = document.getElementById(`${this.context}SelectedFiles`);
-            
-            if (!this.dropzone || !this.fileInput) return;
-            
-            this.bindEvents();
-        }
+        this.fileInput = fileInput;
+        this.selectedList = document.getElementById(`${this.context}SelectedFiles`);
         
-        bindEvents() {
-            // Click sur la dropzone
-            this.dropzone.addEventListener('click', () => {
-                this.fileInput.click();
-            });
-            
-            // Drag & Drop
-            this.dropzone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                this.dropzone.classList.add('dragover');
-            });
-            
-            this.dropzone.addEventListener('dragleave', () => {
-                this.dropzone.classList.remove('dragover');
-            });
-            
-            this.dropzone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                this.dropzone.classList.remove('dragover');
-                this.handleFiles(e.dataTransfer.files);
-            });
-            
-            // Sélection de fichiers
-            this.fileInput.addEventListener('change', (e) => {
-                this.handleFiles(e.target.files);
-            });
-        }
+        if (!this.dropzone || !this.fileInput) return;
+        
+        this.bindEvents();
+    }
+    
+    bindEvents() {
+        // Click sur la dropzone
+        this.dropzone.addEventListener('click', () => {
+            this.fileInput.click();
+        });
+        
+        // Drag & Drop
+        this.dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            this.dropzone.classList.add('dragover');
+        });
+        
+        this.dropzone.addEventListener('dragleave', () => {
+            this.dropzone.classList.remove('dragover');
+        });
+        
+        this.dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.dropzone.classList.remove('dragover');
+            this.handleFiles(e.dataTransfer.files);
+        });
+        
+        // Sélection de fichiers
+        this.fileInput.addEventListener('change', (e) => {
+            this.handleFiles(e.target.files);
+        });
+    }
         
         handleFiles(files) {
             Array.from(files).forEach(file => {
@@ -2093,26 +2108,30 @@
         
         // Pour le mode édition uniquement
         async loadExistingFiles(taskId) {
-            if (this.context !== 'edit') return;
-            
-            try {
-                const response = await $.ajax({
-                    url: `/tasks/${taskId}/files`,
-                    type: 'GET',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    }
-                });
-                
-                if (response.success) {
-                    this.existingFiles = response.data;
-                    this.displayExistingFiles();
-                    $('#filesCount').text(this.existingFiles.length);
-                }
-            } catch (error) {
-                console.error('Error loading files:', error);
+    if (this.context !== 'edit') return;
+    
+    try {
+        const response = await $.ajax({
+            url: `/tasks/${taskId}/files`,
+            type: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             }
+        });
+        
+        if (response.success) {
+            this.existingFiles = response.data;
+            this.displayExistingFiles();
+            console.log('Existing files loaded:', response.total_files);
+            // Utiliser total_files au lieu de total
+            $('#filesCountEdit').text(response.total_files || 0);
         }
+    } catch (error) {
+        console.error('Error loading files:', error);
+    }
+}
+
+
         
         displayExistingFiles() {
             const container = document.getElementById('existingFilesList');
@@ -2139,6 +2158,9 @@
                         <div class="existing-file-actions">
                             <a href="${file.download_url || '#'}" class="existing-file-download" target="_blank" title="Télécharger">
                                 <i class="fas fa-download"></i>
+                            </a>
+                            <a href="${file.preview_url || '#'}" class="existing-file-preview" target="_blank" title="Aperçu">
+                                <i class="fas fa-eye"></i>
                             </a>
                             <button class="existing-file-delete" onclick="window.editFileManager.deleteFile(${file.id})" title="Supprimer">
                                 <i class="fas fa-trash"></i>
@@ -2177,7 +2199,7 @@
                         setTimeout(() => {
                             fileElement.remove();
                             this.existingFiles = this.existingFiles.filter(f => f.id !== fileId);
-                            $('#filesCount').text(this.existingFiles.length);
+                            $('#filesCountEdit').text(this.existingFiles.length);
                             
                             if (this.existingFiles.length === 0) {
                                 document.getElementById('existingFilesList').innerHTML = 
@@ -3093,7 +3115,7 @@
                 window.editFileManager.reset();
                 window.editFileManager.existingFiles = [];
                 $('#existingFilesList').empty();
-                $('#filesCount').text('0');
+                $('#filesCountEdit').text('0');
             }
             window.currentTaskId = null;
         });

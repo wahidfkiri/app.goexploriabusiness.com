@@ -5,30 +5,45 @@
     "description": "The skeleton application for the Laravel framework.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/vendor/cms",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "require": {
         "php": "^8.2",
+        "box/spout": "^3.3",
+        "dompdf/dompdf": "^3.1",
         "google-gemini-php/laravel": "^2.0",
         "google/cloud-ai-platform": "^1.47",
         "intervention/image": "^3.11",
         "laravel/framework": "^11.31",
-        "laravel/sanctum": "^4.2",
+        "laravel/octane": "^2.17",
+        "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "laravel/ui": "^4.6",
+        "maatwebsite/excel": "^3.1",
         "openai-php/client": "^0.18.0",
         "openai-php/laravel": "^0.18.0",
+        "phpoffice/phpspreadsheet": "^1.30",
         "roach-php/core": "^3.2",
         "spatie/browsershot": "^5.2",
         "spatie/crawler": "^8.4",
         "spatie/laravel-permission": "^6.24",
         "srmklive/paypal": "~3.0",
-        "stripe/stripe-php": "^19.4"
+        "stripe/stripe-php": "^19.4",
+        "vendor/cms": "@dev"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.1",
         "laravel/pint": "^1.13",
         "laravel/sail": "^1.26",
-        "laravel/telescope": "^5.18",
+        "laravel/telescope": "^5.19",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.1",
         "phpunit/phpunit": "^11.0.1"
@@ -42,18 +57,29 @@
             "Vendor\\Gemini\\": "packages/vendor/gemini/src",
             "Vendor\\Customer\\": "packages/vendor/customer/src",
             "Vendor\\Website\\": "packages/vendor/website/src",
-            "Vendor\\Destination\\": "packages/vendor/destination/src",
             "Vendor\\Administration\\": "packages/vendor/administration/src",
             "Vendor\\GeoMap\\": "packages/vendor/geo-map/src",
-            "Vendor\\Activitie\\": "packages/vendor/activitie/src",
             "Vendor\\Etablissement\\": "packages/vendor/etablissement/src",
             "Vendor\\Setting\\": "packages/vendor/setting/src",
-            "Vendor\\Users\\": "packages/vendor/users/src",
             "Vendor\\Theme\\": "packages/vendor/theme/src",
             "Vendor\\Template\\": "packages/vendor/template/src",
             "Vendor\\Project\\": "packages/vendor/project/src",
-            "Vendor\\Ecommerce\\": "packages/vendor/ecommerce/src"
-        }
+            "Vendor\\Ecommerce\\": "packages/vendor/ecommerce/src",
+            "Vendor\\MapMarker\\": "packages/vendor/map-marker/src",
+            "Vendor\\Plugins\\": "packages/vendor/plugins/src",
+            "Vendor\\MailMarketing\\": "packages/vendor/mail-marketing/src",
+            "Vendor\\Cms\\": "packages/vendor/cms/src",
+            "Vendor\\Chatbot\\": "packages/vendor/chatbot/src/",
+            "Vendor\\AdsManager\\": "packages/vendor/ads-manager/src/",
+            "Vendor\\LocationDataEngine\\": "packages/vendor/location-data-engine/src/",
+            "Vendor\\MapsDataEngine\\": "packages/vendor/maps-data-engine/src/",
+            "Vendor\\ModeEmploi\\": "packages/vendor/mode-emploi/src/"
+        },
+        "files": [
+            "packages/vendor/cms/src/Helpers/helpers.php",
+            "packages/vendor/chatbot/src/Helpers/InternalChatHelper.php",
+            "packages/vendor/ads-manager/src/Helpers/Helper.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

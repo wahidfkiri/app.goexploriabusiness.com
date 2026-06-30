@@ -16,6 +16,9 @@ use App\Http\Controllers\TemplateScraperController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\GlobalSearchController;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,30 +33,24 @@ Route::post('/chat/clear-history', [ChatController::class, 'clearHistory'])->nam
 Route::get('/', function () {
     return view('auth.login');
 });
-Route::get('/welcome', function () {
-    return view('welcome1');
-});
-Route::get('/test', function () {
-    return view('test');
-});
+
+Route::middleware(['auth'])->get('/ads-demo', function () {
+    return view('ads-manager::ads-demo');
+})->name('ads');
+
 // Page de login
 Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 
-Route::middleware(['en.developpement'])->group(function () {
-    // Route pour le dashboard (à protéger)
-Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard')->middleware('auth');
 
 // Route pour le dashboard (à protéger)
 Route::get('/home', function () {
     return view('home');
 })->name('home')->middleware('auth');
+
 // Authentification Ajax
 Route::post('/ajax-login', [AjaxAuthController::class, 'login'])->name('ajax.login');
-});
-
-
 Route::post('/ajax/register', [AuthController::class, 'ajaxRegister'])->name('ajax.register');
 Route::get('/ajax-register', [AjaxAuthController::class, 'showRegisterForm'])->name('register');
 // Routes d'authentification sociale
@@ -68,11 +65,32 @@ Route::post('/logout', function () {
     return redirect('/login');
 })->name('logout');
 
+// Email Verification Routes
+Route::middleware('auth')->group(function () {
+    Route::get('/email/verify', function () {
+        if (auth()->user()->hasVerifiedEmail()) {
+            return redirect()->route('dashboard');
+        }
+        return view('auth.verify-email');
+    })->name('verification.notice');
+
+    Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+        $request->fulfill();
+        return redirect()->route('dashboard');
+    })->middleware('signed')->name('verification.verify');
+
+    Route::post('/email/verify/resend', function (Request $request) {
+        $request->user()->sendEmailVerificationNotification();
+        return back()->with('resent', true);
+    })->middleware('throttle:6,1')->name('verification.resend');
+});
 
 // Éditeur (protégé)
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth','web','user.active'])->group(function () {
 
 
+// Route pour le dashboard (à protéger)
+Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
 
     
     // Profil utilisateur
@@ -131,6 +149,10 @@ Route::post('/batch-scrape', [TemplateScraperController::class, 'batchScrape'])-
 // routes/web.php
 Route::get('/gemini/generate', [GeminiController::class, 'generate'])->name('gemini.generate');
 Route::get('/gemini/test', [GeminiController::class, 'test'])->name('gemini.test');
+
+// Dans votre fichier routes/web.php, ajoutez cette route dans le groupe auth
+Route::get('/api/global-search', [App\Http\Controllers\GlobalSearchController::class, 'search'])->name('global.search');
+
 });
 
 // API Routes (protégées par Sanctum)
@@ -232,3 +254,4 @@ Route::get('/test-email', function () {
 
     return "Email envoyé avec succès";
 });
+

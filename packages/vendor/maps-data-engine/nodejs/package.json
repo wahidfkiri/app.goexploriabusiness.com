@@ -1,0 +1,19 @@
+{
+  "name": "maps-data-engine-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node.js Playwright runtime for Maps Data Engine",
+  "main": "scrapers/run-google-maps.js",
+  "type": "commonjs",
+  "scripts": {
+    "check": "node --check scrapers/run-google-maps.js && node --check scrapers/GoogleMapsScraper.js && node --check browser/BrowserManager.js && node --check stealth/AntiDetectionManager.js && node --check proxy/ProxyManager.js && node --check utils/HumanBehavior.js"
+  },
+  "dependencies": {
+    "fs-extra": "^11.2.0",
+    "playwright": "^1.54.2",
+    "playwright-extra": "^4.3.6",
+    "proxy-chain": "^2.5.3",
+    "random-useragent": "^0.5.0",
+    "user-agents": "^1.1.647"
+  }
+}

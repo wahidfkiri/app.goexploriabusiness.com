@@ -513,6 +513,31 @@
                 <div id="step2Form" class="form-step">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">Informations professionnelles</h3>
                     
+                    <!-- Type de compte -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Type de compte</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleClient">
+                                <input type="radio" name="role" value="client" class="hidden" checked onchange="updateRoleSelection(this)">
+                                <i class="fas fa-user text-lg text-blue-600 mb-1"></i>
+                                <div class="text-xs font-medium text-gray-700">Client</div>
+                                <div class="text-xs text-gray-500">Accès limité</div>
+                            </label>
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleUser">
+                                <input type="radio" name="role" value="user" class="hidden" onchange="updateRoleSelection(this)">
+                                <i class="fas fa-user-tie text-lg text-green-600 mb-1"></i>
+                                <div class="text-xs font-medium text-gray-700">Utilisateur</div>
+                                <div class="text-xs text-gray-500">Accès standard</div>
+                            </label>
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleManager">
+                                <input type="radio" name="role" value="manager" class="hidden" onchange="updateRoleSelection(this)">
+                                <i class="fas fa-user-cog text-lg text-purple-600 mb-1"></i>
+                                <div class="text-xs font-medium text-gray-700">Manager</div>
+                                <div class="text-xs text-gray-500">Gestion opérationnelle</div>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Nom de l'établissement -->
                     <div class="relative">
                         <input type="text" 
@@ -684,6 +709,18 @@
         // Variables globales
         let currentStep = 1;
         const totalSteps = 3;
+
+        // Role selection
+        function updateRoleSelection(input) {
+            document.querySelectorAll('[id^="role"]').forEach(el => {
+                if (el.id !== 'roleClient' && el.id !== 'roleUser' && el.id !== 'roleManager') return;
+                el.classList.remove('border-blue-600', 'bg-blue-50');
+                el.classList.add('border-gray-200');
+            });
+            const parent = input.closest('label');
+            parent.classList.remove('border-gray-200');
+            parent.classList.add('border-blue-600', 'bg-blue-50');
+        }
 
         // Toggle password visibility
         function togglePassword(inputId, iconId) {
@@ -914,6 +951,12 @@
             formData.append('ville', document.getElementById('ville').value.trim());
             formData.append('zip_code', document.getElementById('zip_code').value.trim());
             
+            // Role
+            const selectedRole = document.querySelector('input[name="role"]:checked');
+            if (selectedRole) {
+                formData.append('role', selectedRole.value);
+            }
+
             // Terms and newsletter
             formData.append('terms', document.getElementById('termsCheckbox').classList.contains('checked') ? '1' : '0');
             formData.append('newsletter', document.getElementById('newsletterCheckbox').classList.contains('checked') ? '1' : '0');
@@ -941,7 +984,7 @@
                     
                     // Redirection
                     setTimeout(() => {
-                        window.location.href = data.redirect || '{{ route("login") }}';
+                        window.location.href = data.redirect || '{{ route("verification.notice") }}';
                     }, 1500);
                     
                 } else {

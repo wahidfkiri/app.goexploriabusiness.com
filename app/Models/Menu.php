@@ -93,11 +93,11 @@ class Menu extends Model
         }
 
         if ($this->type === 'category' && $this->category) {
-            return route('categories.show', $this->category->slug);
+            return '#';
         }
 
         if ($this->type === 'activity' && $this->activity) {
-            return route('activities.show', $this->activity->slug);
+            return '#';
         }
 
         return '#';

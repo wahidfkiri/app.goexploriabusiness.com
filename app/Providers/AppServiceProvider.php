@@ -21,12 +21,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
-        
+
         // Service OpenAI
         $this->app->singleton(\App\Services\OpenAIService::class, function ($app) {
             return new \App\Services\OpenAIService();
         });
     }
 
-    
+
 }

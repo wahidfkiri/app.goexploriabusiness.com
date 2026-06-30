@@ -8,8 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\WelcomeUserMail;
+use Illuminate\Auth\Events\Registered;
+
 
 class AuthController extends Controller
 {
@@ -53,14 +53,14 @@ class AuthController extends Controller
         return view('auth.register');
     }
 
-  public function ajaxRegister(Request $request)
+    public function ajaxRegister(Request $request)
     {
-        // Validation des données
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'password_confirmation' => 'required|string|min:8',
+            'role' => 'nullable|string|in:client,user,manager',
             'etablissement_name' => 'nullable|string|max:255',
             'lname' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
@@ -89,7 +89,6 @@ class AuthController extends Controller
         }
 
         try {
-            // Créer l'utilisateur
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -97,42 +96,36 @@ class AuthController extends Controller
                 'is_active' => true,
             ]);
 
-            // Assigner un rôle par défaut si Spatie est installé
-            // if (class_exists('Spatie\Permission\Models\Role')) {
-            //     $user->assignRole('client');
-            // }
+            $role = $request->input('role', 'client');
+            $user->assignRole($role);
 
-            $passwordPlain = $request->password;
-        // Envoyer email de bienvenue
-        Mail::to($user->email)->send(new WelcomeUserMail($user, $passwordPlain));
+            $etablissementData = [
+                'name' => $request->etablissement_name ?? $request->name,
+                'lname' => $request->lname,
+                'ville' => $request->ville,
+                'user_id' => $user->id,
+                'adresse' => $request->adresse,
+                'zip_code' => $request->zip_code,
+                'phone' => $request->phone,
+                'email_contact' => $request->email,
+                'is_active' => true,
+            ];
 
-            // Créer l'établissement associé si des données sont fournies
-            if ($request->filled('etablissement_name')) {
-                Etablissement::create([
-                    'name' => $request->etablissement_name,
-                    'lname' => $request->lname,
-                    'ville' => $request->ville,
-                    'user_id' => $user->id,
-                    'adresse' => $request->adresse,
-                    'zip_code' => $request->zip_code,
-                    'phone' => $request->phone,
-                    'email_contact' => $request->email, // Utiliser l'email de l'utilisateur par défaut
-                    'is_active' => true,
-                ]);
-            }
+            Etablissement::create($etablissementData);
 
-            // Optionnel : Connexion automatique après inscription
-            // auth()->login($user);
+            auth()->login($user);
+
+            event(new Registered($user));
 
             return response()->json([
                 'success' => true,
-                'message' => 'Inscription réussie !',
-                'redirect' => route('login') // Rediriger vers la page de connexion
+                'message' => 'Inscription réussie ! Veuillez vérifier votre adresse email.',
+                'redirect' => route('verification.notice')
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Registration error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Une erreur est survenue lors de l\'inscription. Veuillez réessayer.',

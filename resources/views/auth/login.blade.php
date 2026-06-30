@@ -341,15 +341,12 @@
 
             <!-- Alert div pour succès/erreurs -->
             <div id="alertContainer" class="hidden"></div>
-            <!-- Alert div pour succès/erreurs -->
-                @if(session('message'))
-            <div id="alertContainer">
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle"></i>
-                        {{ session('message') }}
-                    </div>
-            </div>
-                @endif
+            @if(session('error'))
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {{ session('error') }}
+                </div>
+            @endif
 
             <!-- Formulaire de Connexion -->
             <form id="loginForm" class="space-y-5">
@@ -576,8 +573,9 @@
                                 document.getElementById('loginPassword').classList.remove('shake');
                             }, 500);
                         }
+                    } else if (data.needs_verification) {
+                        showAlert(data.message, 'error');
                     } else {
-                        // Auth error
                         showAlert(data.message || 'Erreur de connexion', 'error');
                     }
                 }

@@ -4,6 +4,7 @@ namespace Vendor\GeoMap\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Place;
+use App\Models\MapCategory;
 use Vendor\GeoMap\Resources\PlaceResource;
 use Illuminate\Http\Request;
 
@@ -11,11 +12,11 @@ class PlaceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Place::query();
+        $query = Place::query()->with('mapCategory');
         
         // Filtrage par catégorie
         if ($request->has('category') && $request->category !== 'all') {
-            $query->where('category', $request->category);
+            $query->whereHas('mapCategory', fn($q) => $q->where('slug', $request->category));
         }
         
         // Filtrage par rayon géographique (optionnel)
@@ -33,9 +34,7 @@ class PlaceController extends Controller
     
     public function categories()
     {
-        $categories = Place::select('category')
-            ->distinct()
-            ->pluck('category');
+        $categories = MapCategory::active()->ordered()->get(['id', 'name', 'slug', 'icon_class', 'color', 'image']);
             
         return response()->json($categories);
     }

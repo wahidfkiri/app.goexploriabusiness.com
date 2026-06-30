@@ -21,6 +21,8 @@ class Activity extends Model
     ];
 
     
+    protected $appends = ['image_url'];
+
     protected $casts = [
         'is_active' => 'boolean',
         'type' => 'integer',
@@ -169,7 +171,11 @@ class Activity extends Model
      */
     public function getImageUrlAttribute()
     {
-        return $this->image ? asset('storage/' . $this->image) : null;
+        if (!$this->image) return null;
+        if (str_starts_with($this->image, 'http://') || str_starts_with($this->image, 'https://')) {
+            return $this->image;
+        }
+        return asset('storage/' . $this->image);
     }
 
     /**
@@ -189,4 +195,61 @@ class Activity extends Model
         // Si les tags sont une chaîne séparée par des virgules
         return array_map('trim', explode(',', $this->tags));
     }
+
+
+/**
+ * Relation avec les contenus de page
+ */
+public function pageContents()
+{
+    return $this->hasMany(PageContent::class);
+}
+
+/**
+ * Relation avec les contenus par type
+ */
+public function pageContentsByType($type)
+{
+    return $this->pageContents()->where('type', $type)->orderBy('order');
+}
+
+/**
+ * Récupérer les événements
+ */
+public function events()
+{
+    return $this->pageContentsByType('event');
+}
+
+/**
+ * Récupérer les blogs
+ */
+public function blogs()
+{
+    return $this->pageContentsByType('blog');
+}
+
+/**
+ * Récupérer les vidéos
+ */
+public function videos()
+{
+    return $this->pageContentsByType('video');
+}
+
+/**
+ * Récupérer le contenu "À propos"
+ */
+public function about()
+{
+    return $this->pageContentsByType('about')->first();
+}
+
+/**
+ * Récupérer les contenus actifs
+ */
+public function activePageContents()
+{
+    return $this->pageContents()->where('is_active', true);
+}
 }

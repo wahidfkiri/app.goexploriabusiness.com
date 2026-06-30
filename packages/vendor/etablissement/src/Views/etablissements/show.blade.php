@@ -11,11 +11,11 @@
             </h1>
             
             <div class="page-actions">
-                <a href="{{ route('etablissements.edit', $etablissement->id) }}" class="btn btn-primary">
+                <a href="{{ route('etablissements.edit') }}" class="btn btn-primary">
                     <i class="fas fa-edit me-2"></i>Modifier
                 </a>
                 <a href="{{ route('etablissements.index') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+                    <i class="fas fa-arrow-left me-2"></i>Tableau de bord
                 </a>
             </div>
         </div>
@@ -343,7 +343,7 @@
                                                 </div>
                                             </div>
                                             <div class="activity-actions">
-                                                <form action="{{ route('etablissements.detach-activity', [$etablissement->id, $activity->id]) }}" method="POST" class="d-inline">
+                                                <form action="{{ url('etablissements.detach-activity', [$etablissement->id, $activity->id]) }}" method="POST" class="d-inline">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Êtes-vous sûr de vouloir détacher cette activité ?')">
@@ -936,13 +936,7 @@
                 </div>
                 <div class="modal-footer border-0 justify-content-center">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <form action="{{ route('etablissements.destroy', $etablissement->id) }}" method="POST" class="d-inline">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-danger">
-                            <i class="fas fa-trash me-2"></i>Supprimer définitivement
-                        </button>
-                    </form>
+
                 </div>
             </div>
         </div>

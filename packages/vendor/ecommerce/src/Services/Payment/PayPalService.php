@@ -4,6 +4,7 @@ namespace Vendor\Ecommerce\Services\Payment;
 
 use App\Models\PaymentGateway;
 use App\Models\PaymentTransaction;
+use App\Models\Invoice;
 use Illuminate\Support\Facades\Log;
 use Srmklive\PayPal\Services\PayPal as PayPalClient;
 
@@ -148,8 +149,13 @@ class PayPalService
         }
     }
 
-    public function handleWebhook($payload)
+    public function handleWebhook($payload, $signature = null)
     {
+        if (is_string($payload)) {
+            $decoded = json_decode($payload, true);
+            $payload = is_array($decoded) ? $decoded : [];
+        }
+
         $eventType = $payload['event_type'] ?? '';
         
         switch ($eventType) {

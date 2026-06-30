@@ -1,6 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
+    @php
+        $galleryImages = is_array($product->gallery_images)
+            ? $product->gallery_images
+            : (json_decode($product->gallery_images ?? '[]', true) ?: []);
+    @endphp
     <!-- MAIN CONTENT -->
     <main class="dashboard-content">
         <!-- Page Header -->
@@ -42,8 +47,8 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="gallery-tab" data-bs-toggle="tab" data-bs-target="#gallery" type="button" role="tab">
                         <i class="fas fa-images me-2"></i>Galerie
-                        @if($product->gallery_images && count(json_decode($product->gallery_images)) > 0)
-                            <span class="badge bg-primary ms-2">{{ count(json_decode($product->gallery_images)) }}</span>
+                        @if(count($galleryImages) > 0)
+                            <span class="badge bg-primary ms-2">{{ count($galleryImages) }}</span>
                         @endif
                     </button>
                 </li>
@@ -87,7 +92,7 @@
                                 <div class="product-show-header">
                                     <div class="product-show-image">
                                         @if($product->main_image)
-                                            <img src="{{ asset('storage/' . $product->main_image) }}" alt="{{ $product->name }}" class="img-fluid">
+                                            <img src="{{ \Illuminate\Support\Str::startsWith($product->main_image, ['http://', 'https://']) ? $product->main_image : asset('storage/' . $product->main_image) }}" alt="{{ $product->name }}" class="img-fluid">
                                         @else
                                             <div class="no-image-placeholder">
                                                 <i class="fas fa-image fa-4x"></i>
@@ -477,11 +482,11 @@
                     </div>
                     
                     <div class="card-body-modern">
-                        @if($product->gallery_images && count($gallery = json_decode($product->gallery_images)) > 0)
+                        @if(count($galleryImages) > 0)
                             <div class="gallery-grid">
-                                @foreach($gallery as $index => $image)
+                                @foreach($galleryImages as $index => $image)
                                 <div class="gallery-item">
-                                    <img src="{{ asset('storage/' . $image) }}" alt="Gallery image {{ $index + 1 }}" class="gallery-image">
+                                    <img src="{{ \Illuminate\Support\Str::startsWith($image, ['http://', 'https://']) ? $image : asset('storage/' . $image) }}" alt="Gallery image {{ $index + 1 }}" class="gallery-image">
                                 </div>
                                 @endforeach
                             </div>

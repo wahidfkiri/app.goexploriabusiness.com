@@ -56,6 +56,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Force HTTPS
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, the application will redirect incoming HTTP requests to
+    | HTTPS and will generate secure application URLs. This is especially
+    | useful behind Apache, reverse proxies, or CDN layers in production.
+    |
+    */
+
+    'force_https' => (bool) env('APP_FORCE_HTTPS', env('APP_ENV', 'production') === 'production'),
+
+    'https_hsts_seconds' => (int) env('APP_HSTS_SECONDS', 31536000),
+
+    'canonical_host' => env('APP_CANONICAL_HOST'),
+
+    'strip_www' => (bool) env('APP_STRIP_WWW', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

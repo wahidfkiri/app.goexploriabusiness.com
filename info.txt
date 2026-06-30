@@ -7,3 +7,31 @@ php artisan db:seed --class=SouthAmericaCountriesSeeder
 php artisan db:seed --class=OceaniaCountriesSeeder
 
 php artisan db:seed --class=CanadaProvincesSeeder
+
+
+# Démarrer le worker pour traiter les jobs
+php artisan queue:work --queue=emails
+
+# Ou pour exécuter en arrière-plan (recommandé en production)
+php artisan queue:work --queue=emails --daemon
+
+# cmds pour package cms
+composer require vendor/cms:@dev
+php artisan vendor:publish --provider="Vendor\Cms\CmsServiceProvider" --tag="cms-config"
+php artisan vendor:publish --provider="Vendor\Cms\CmsServiceProvider" --tag="cms-migrations"
+php artisan migrate --database=cms
+
+
+
+sudo nano /etc/php/8.1/fpm/php.ini
+
+upload_max_filesize = 100M
+post_max_size = 110M
+memory_limit = 256M
+max_execution_time = 300
+
+
+
+sudo supervisorctl status
+
+NARA_ROUTER_KEY=sk-nry-03b0pnoky1NOXd3V7esT--rIOZIVhswqgdVrfjh3cpU

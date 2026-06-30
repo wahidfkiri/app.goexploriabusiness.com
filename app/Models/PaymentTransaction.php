@@ -14,6 +14,7 @@ class PaymentTransaction extends Model
         'etablissement_id',
         'payment_id',
         'invoice_id',
+        'online_order_id',
         'client_id',
         'payment_gateway_id',
         'gateway_type',
@@ -52,6 +53,11 @@ class PaymentTransaction extends Model
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function onlineOrder()
+    {
+        return $this->belongsTo(OnlineOrder::class, 'online_order_id');
     }
 
     public function client()

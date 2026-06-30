@@ -15,6 +15,7 @@ class Category extends Model
         'description',
         'is_active',
         'categorie_type_id',
+        'icon',
     ];
 
     public function websites()
@@ -40,5 +41,13 @@ class Category extends Model
     public function type()
     {
         return $this->belongsTo(CategorieType::class, 'categorie_type_id');
+    }
+
+    public function getIconUrlAttribute()
+    {
+        if ($this->icon) {
+            return asset('storage/' . $this->icon);
+        }
+        return null;
     }
 }

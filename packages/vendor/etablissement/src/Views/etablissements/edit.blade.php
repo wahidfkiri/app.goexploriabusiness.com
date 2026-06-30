@@ -2,505 +2,620 @@
 
 @section('content')
 <main class="dashboard-content">
+    @php($linkedUser = $etablissement->user)
     <!-- Page Header -->
     <div class="page-header">
         <h1 class="page-title">
             <span class="page-title-icon"><i class="fas fa-building"></i></span>
-            Modifier l'Établissement : {{ $etablissement->name }}
+            Modifier l'établissement : {{ $etablissement->name }}
         </h1>
         
         <div class="page-actions">
             <a href="{{ route('etablissements.index') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Retour à la liste
             </a>
+            <a href="{{ route('etablissements.show') }}" class="btn btn-info">
+                <i class="fas fa-eye me-2"></i>Voir détails
+            </a>
         </div>
     </div>
+
+    <section class="etab-hero-strip">
+        <div class="etab-hero-main">
+            <span class="etab-hero-kicker">Fiche établissement</span>
+            <h2 class="etab-hero-title">Mettez à jour la fiche en gardant une vue claire sur la localisation, les activités et le compte client.</h2>
+            <p class="etab-hero-text">La structure reste identique à la création pour éviter les allers-retours et sécuriser vos modifications.</p>
+        </div>
+        <div class="etab-hero-grid">
+            <div class="etab-hero-card">
+                <span class="etab-hero-card-label">Ville</span>
+                <strong>{{ $etablissement->ville ?: 'À compléter' }}</strong>
+                <small>{{ $etablissement->country?->name ?: 'Pays non renseigné' }}</small>
+            </div>
+            <div class="etab-hero-card">
+                <span class="etab-hero-card-label">Activités liées</span>
+                <strong>{{ count($selectedActivities) }}</strong>
+                <small>Synchronisées avec la fiche</small>
+            </div>
+            <div class="etab-hero-card">
+                <span class="etab-hero-card-label">Compte client</span>
+                <strong>{{ $linkedUser ? 'Déjà lié' : 'Optionnel' }}</strong>
+                <small>{{ $linkedUser ? ($linkedUser->email ?: 'Email à compléter') : 'Création facultative' }}</small>
+            </div>
+        </div>
+    </section>
     
-    <!-- Main Card -->
+    <!-- Main Form Card -->
     <div class="main-card-modern">
         <div class="card-header-modern">
             <h3 class="card-title-modern">
-                <i class="fas fa-edit me-2"></i>Formulaire de Modification
+                <i class="fas fa-edit me-2"></i>Formulaire en 4 étapes
             </h3>
         </div>
         
         <div class="card-body-modern">
-            <!-- Navigation Tabs -->
-            <ul class="nav nav-tabs" id="etablissementTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="info-tab" data-bs-toggle="tab" 
-                            data-bs-target="#info-tab-pane" type="button" role="tab">
-                        <i class="fas fa-info-circle me-2"></i>Infos Générales
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="localisation-tab" data-bs-toggle="tab" 
-                            data-bs-target="#localisation-tab-pane" type="button" role="tab">
-                        <i class="fas fa-map-marker-alt me-2"></i>Localisation
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="activites-tab" data-bs-toggle="tab" 
-                            data-bs-target="#activites-tab-pane" type="button" role="tab">
-                        <i class="fas fa-tasks me-2"></i>Activités
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="acces-tab" data-bs-toggle="tab" 
-                            data-bs-target="#acces-tab-pane" type="button" role="tab">
-                        <i class="fas fa-user-circle me-2"></i>Accès Login
-                    </button>
-                </li>
-            </ul>
-            
-            <!-- Tab Content -->
-            <div class="tab-content" id="etablissementTabsContent">
-                
-                <!-- Tab 1: Informations Générales -->
-                <div class="tab-pane fade show active" id="info-tab-pane" role="tabpanel" 
-                     tabindex="0">
-                    <div class="tab-header">
-                        <h4 class="tab-title">
-                            <i class="fas fa-info-circle me-2"></i>Informations Générales
-                        </h4>
-                        <button type="submit" form="infoForm" class="btn btn-success btn-sm">
-                            <i class="fas fa-save me-1"></i>Mettre à jour
-                        </button>
-                    </div>
-                    
-                    <form id="infoForm" action="{{ route('etablissements.update', $etablissement) }}" method="POST" 
-                          class="tab-form">
-                        @csrf
-                        @method('PUT')
-                        <input type="hidden" name="form_type" value="info">
-                        
-                        <div class="row">
-                            <div class="col-md-12 mb-3">
-                                <label for="name" class="form-label-modern">Nom *</label>
-                                <input type="text" class="form-control-modern" id="name" name="name" 
-                                       value="{{ old('name', $etablissement->name) }}" 
-                                       placeholder="Ex: Hôtel Plaza, Restaurant Le Gourmet..." required>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="phone" class="form-label-modern">Téléphone</label>
-                                <input type="text" class="form-control-modern" id="phone" name="phone" 
-                                       value="{{ old('phone', $etablissement->phone) }}" 
-                                       placeholder="Ex: +33 1 23 45 67 89">
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="fax" class="form-label-modern">Fax</label>
-                                <input type="text" class="form-control-modern" id="fax" name="fax" 
-                                       value="{{ old('fax', $etablissement->fax) }}" 
-                                       placeholder="Ex: +33 1 23 45 67 90">
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="email_contact" class="form-label-modern">Email Contact</label>
-                                <div class="input-group">
-                                    <input type="email" class="form-control-modern" id="email_contact" name="email_contact" 
-                                           value="{{ old('email_contact', $etablissement->email_contact) }}" 
-                                           placeholder="test@example.com">
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="website" class="form-label-modern">Site Web</label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="fas fa-globe"></i></span>
-                                    <input type="url" class="form-control-modern" id="website" name="website" 
-                                           value="{{ old('website', $etablissement->website) }}" 
-                                           placeholder="Ex: https://www.mon-etablissement.com">
-                                </div>
-                            </div>
-                        </div>
-                    </form>
+            <!-- Stepper -->
+            <div class="stepper-container">
+                <div class="stepper-progress">
+                    <div class="stepper-progress-bar" id="stepperProgressBar"></div>
                 </div>
-                
-                <!-- Tab 2: Localisation -->
-                <div class="tab-pane fade" id="localisation-tab-pane" role="tabpanel" 
-                     tabindex="0">
-                    <div class="tab-header">
-                        <h4 class="tab-title">
-                            <i class="fas fa-map-marker-alt me-2"></i>Localisation
-                        </h4>
-                        <button type="submit" form="localisationForm" class="btn btn-success btn-sm">
-                            <i class="fas fa-save me-1"></i>Mettre à jour
-                        </button>
+                <div class="stepper-steps">
+                    <div class="stepper-step active" data-step="1">
+                        <div class="step-icon">1</div>
+                        <div class="step-label">Infos Générales</div>
                     </div>
-                    
-                    <form id="localisationForm" action="{{ route('etablissements.update', $etablissement) }}" method="POST" 
-                          class="tab-form">
-                        @csrf
-                        @method('PUT')
-                        <input type="hidden" name="form_type" value="localisation">
-                        
-                        <div class="row">
-                            <div class="col-md-12 mb-3">
-                                <label for="ville_search" class="form-label-modern">Ville *</label>
-                                <input type="text" class="form-control-modern" id="ville_search" name="ville_search" 
-                                       value="{{ old('ville_search', $etablissement->ville) }}" 
-                                       placeholder="Commencez à taper pour rechercher une ville..." 
-                                       autocomplete="off">
-                                <input type="hidden" id="ville" name="ville" value="{{ old('ville', $etablissement->ville) }}">
-                                <input type="hidden" id="region_id" name="region_id" value="{{ old('region_id', $etablissement->region_id) }}">
-                                <input type="hidden" id="province_id" name="province_id" value="{{ old('province_id', $etablissement->province_id) }}">
-                                <input type="hidden" id="country_id" name="country_id" value="{{ old('country_id', $etablissement->country_id) }}">
-                                
-                                <div id="ville_suggestions" class="suggestions-dropdown" style="display: none;">
-                                    <!-- Les suggestions seront chargées ici via AJAX -->
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="adresse" class="form-label-modern">Adresse complète *</label>
-                                <textarea class="form-control-modern" id="adresse" name="adresse" 
-                                          rows="2" placeholder="Ex: 123 Avenue des Champs-Élysées..." 
-                                          required>{{ old('adresse', $etablissement->adresse) }}</textarea>
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="zip_code" class="form-label-modern">Code postal *</label>
-                                <input type="text" class="form-control-modern" id="zip_code" name="zip_code" 
-                                       value="{{ old('zip_code', $etablissement->zip_code) }}" 
-                                       placeholder="Ex: 75001, 69002..." required>
-                            </div>
-
-                            <h3 class="tab-title mt-4">
-                                <i class="fas fa-map-marked-alt me-2"></i> Position sur la map
-                            </h3>
-                            <div class="col-md-6 mb-3">
-                                <label for="latitude" class="form-label-modern">Latitude</label>
-                                <input type="text" class="form-control-modern" id="latitude" name="latitude" 
-                                       value="{{ old('latitude', $etablissement->latitude) }}" 
-                                       placeholder="Ex: 46.8139" required>
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="longitude" class="form-label-modern">Longitude</label>
-                                <input type="text" class="form-control-modern" id="longitude" name="longitude" 
-                                       value="{{ old('longitude', $etablissement->longitude) }}" 
-                                       placeholder="Ex: -71.2080" required>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- Tab 3: Activités -->
-                <div class="tab-pane fade" id="activites-tab-pane" role="tabpanel" 
-                     tabindex="0">
-                    <div class="tab-header">
-                        <h4 class="tab-title">
-                            <i class="fas fa-tasks me-2"></i>Activités
-                        </h4>
-                        <button type="submit" form="activitesForm" class="btn btn-success btn-sm">
-                            <i class="fas fa-save me-1"></i>Mettre à jour
-                        </button>
+                    <div class="stepper-step" data-step="2">
+                        <div class="step-icon">2</div>
+                        <div class="step-label">Localisation</div>
                     </div>
-                    
-                    <form id="activitesForm" action="{{ route('etablissements.update', $etablissement) }}" method="POST" 
-                          class="tab-form">
-                        @csrf
-                        @method('PUT')
-                        <input type="hidden" name="form_type" value="activites">
-                        
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label for="activities" class="form-label-modern">Sélectionnez les activités *</label>
-                                    <div class="activities-multiselect-container">
-                                        <div class="activities-search-container">
-                                            <input type="text" class="form-control-modern activities-search" 
-                                                   placeholder="Rechercher une activité..." 
-                                                   id="activitiesSearch">
-                                            <div class="activities-search-actions">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" 
-                                                        onclick="selectAllActivities()">
-                                                    <i class="fas fa-check-double"></i> Tout sélectionner
-                                                </button>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" 
-                                                        onclick="clearAllActivities()">
-                                                    <i class="fas fa-times"></i> Tout désélectionner
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="activities-selection-container">
-                                            <div class="activities-available">
-                                                <div class="activities-list-header">
-                                                    <h6>Activités disponibles</h6>
-                                                    <span class="badge bg-info" id="availableCount">0</span>
-                                                </div>
-                                                <div class="activities-list" id="availableActivities">
-                                                    <div class="loading-activities">
-                                                        <div class="spinner-border spinner-border-sm text-primary"></div>
-                                                        <span class="ms-2">Chargement des activités...</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="activities-selection-controls">
-                                                <button type="button" class="btn btn-primary btn-sm" 
-                                                        onclick="addSelectedActivities()">
-                                                    <i class="fas fa-arrow-right"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-primary btn-sm" 
-                                                        onclick="removeSelectedActivities()">
-                                                    <i class="fas fa-arrow-left"></i>
-                                                </button>
-                                            </div>
-                                            
-                                            <div class="activities-selected">
-                                                <div class="activities-list-header">
-                                                    <h6>Activités sélectionnées</h6>
-                                                    <span class="badge bg-success" id="selectedCount">0</span>
-                                                </div>
-                                                <div class="activities-list" id="selectedActivities">
-                                                    <!-- Les activités sélectionnées apparaîtront ici -->
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <select multiple="multiple" class="form-control" name="activities[]" 
-                                                id="activitiesSelect" style="display: none;">
-                                            <!-- Les options sélectionnées seront ajoutées ici dynamiquement -->
-                                            @foreach($selectedActivities as $activityId)
-                                            <option value="{{ $activityId }}" selected>{{ $activityId }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- Tab 4: Accès Login -->
-                <div class="tab-pane fade" id="acces-tab-pane" role="tabpanel" 
-                     tabindex="0">
-                    <div class="tab-header">
-                        <h4 class="tab-title">
-                            <i class="fas fa-user-circle me-2"></i>Gestion du compte
-                        </h4>
-                        <button type="submit" form="accesForm" class="btn btn-success btn-sm">
-                            <i class="fas fa-save me-1"></i>Mettre à jour
-                        </button>
+                    <div class="stepper-step" data-step="3">
+                        <div class="step-icon">3</div>
+                        <div class="step-label">Activités</div>
                     </div>
-                    
-                    @if($etablissement->user)
-                    <div class="alert alert-info mb-4">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Compte existant :</strong> {{ $etablissement->user->name }} ({{ $etablissement->user->email }})
+                    <div class="stepper-step" data-step="4">
+                        <div class="step-icon">4</div>
+                        <div class="step-label">Accès Login</div>
                     </div>
-                    @endif
-                    
-                    <form id="accesForm" action="{{ route('etablissements.update', $etablissement) }}" method="POST" 
-                          class="tab-form">
-                        @csrf
-                        @method('PUT')
-                        <input type="hidden" name="form_type" value="acces">
-                        
-                        @if($etablissement->user)
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            La modification des informations de connexion nécessitera une reconnexion de l'utilisateur.
-                        </div>
-                        @endif
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="user_name" class="form-label-modern">Nom complet *</label>
-                                <input type="text" class="form-control-modern" id="user_name" name="user_name" 
-                                       value="{{ old('user_name', $etablissement->user->name ?? '') }}" 
-                                       placeholder="Ex: Jean Dupont" required>
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="user_email" class="form-label-modern">Email *</label>
-                                <input type="email" class="form-control-modern" id="user_email" name="user_email" 
-                                       value="{{ old('user_email', $etablissement->user->email ?? '') }}" 
-                                       placeholder="Ex: contact@etablissement.com" required>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="password" class="form-label-modern">Nouveau mot de passe</label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control-modern" id="password" name="password" 
-                                           placeholder="Laissez vide pour ne pas changer">
-                                    <button type="button" class="btn btn-outline-secondary" 
-                                            onclick="togglePassword('password')">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </div>
-                                <small class="form-text text-muted">Minimum 8 caractères</small>
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="password_confirmation" class="form-label-modern">Confirmer le mot de passe</label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control-modern" id="password_confirmation" 
-                                           name="password_confirmation" placeholder="Confirmer le nouveau mot de passe">
-                                    <button type="button" class="btn btn-outline-secondary" 
-                                            onclick="togglePassword('password_confirmation')">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="col-md-12 mb-3">
-                                <label for="role_id" class="form-label-modern">Type du compte *</label>
-                                <select class="form-control-modern" id="role_id" name="role_id" required>
-                                    @foreach($roles as $role)
-                                    <option value="{{ $role->id }}" 
-                                            {{ old('role_id', $etablissement->user->role_id ?? '') == $role->id ? 'selected' : '' }}>
-                                        {{ $role->libelle }}
-                                    </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label-modern">Statut du compte</label>
-                            <div class="status-toggle">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
-                                           {{ old('is_active', $etablissement->user->is_active ?? true) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="is_active">
-                                        <span class="status-label">Compte actif</span>
-                                        <small class="text-muted d-block">L'utilisateur pourra se connecter</small>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
                 </div>
             </div>
             
-            <!-- Actions globales -->
-            <div class="global-actions mt-4 pt-4 border-top">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <button type="button" class="btn btn-outline-secondary" onclick="prevTab()">
-                            <i class="fas fa-arrow-left me-2"></i>Précédent
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="nextTab()">
+            <!-- Form -->
+            <form action="{{ route('etablissements.update') }}" method="POST" id="editEtablissementForm">
+                @csrf
+                @method('PUT')
+                
+                <!-- Step 1: Informations Générales -->
+                <div class="form-step active" data-step="1">
+                    <h4 class="step-title"><i class="fas fa-info-circle me-2"></i>Informations Générales</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="name" class="form-label-modern">Nom *</label>
+                            <input type="text" class="form-control-modern" id="name" name="name" 
+                                   value="{{ old('name', $etablissement->name) }}"
+                                   placeholder="Ex: Hôtel Plaza, Restaurant Le Gourmet..." required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="phone" class="form-label-modern">Téléphone</label>
+                            <input type="text" class="form-control-modern" id="phone" name="phone" 
+                                   value="{{ old('phone', $etablissement->phone) }}"
+                                   placeholder="Ex: +33 1 23 45 67 89">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="fax" class="form-label-modern">Fax</label>
+                            <input type="text" class="form-control-modern" id="fax" name="fax" 
+                                   value="{{ old('fax', $etablissement->fax) }}"
+                                   placeholder="Ex: +33 1 23 45 67 90">
+                        </div>
+                    </div>
+
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="website" class="form-label-modern">Email Contact</label>
+                        <div class="input-group">
+                            <input type="email" class="form-control-modern" id="email_contact" name="email_contact" 
+                                   value="{{ old('email_contact', $etablissement->email_contact) }}"
+                                   placeholder="test@example.com">
+                        </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="website" class="form-label-modern">Site Web</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-globe"></i></span>
+                            <input type="text" class="form-control-modern" id="website" name="website" 
+                                   value="{{ old('website', $etablissement->website) }}"
+                                   placeholder="Ex: https://www.mon-etablissement.com">
+                        </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <button type="button" class="btn btn-secondary" onclick="nextStep(2)">
                             Suivant <i class="fas fa-arrow-right ms-2"></i>
                         </button>
                     </div>
-                    <div>
-                        <a href="{{ route('etablissements.show', $etablissement) }}" class="btn btn-info me-2">
-                            <i class="fas fa-eye me-2"></i>Voir détails
-                        </a>
-                        <button type="button" class="btn btn-danger" onclick="confirmDelete()">
-                            <i class="fas fa-trash me-2"></i>Supprimer
+                </div>
+                
+                <!-- Step 2: Localisation -->
+                <div class="form-step" data-step="2">
+                    <h4 class="step-title"><i class="fas fa-map-marker-alt me-2"></i>Localisation</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="ville_search" class="form-label-modern">Ville *</label>
+                            <input type="text" class="form-control-modern" id="ville_search" name="ville_search" 
+                                   value="{{ old('ville_search', $etablissement->ville) }}"
+                                   placeholder="Commencez à taper pour rechercher une ville..." 
+                                   autocomplete="off">
+                            <input type="hidden" id="ville" name="ville" value="{{ old('ville', $etablissement->ville) }}">
+                            <input type="hidden" id="region_id" name="region_id" value="{{ old('region_id', $etablissement->region_id) }}">
+                            <input type="hidden" id="province_id" name="province_id" value="{{ old('province_id', $etablissement->province_id) }}">
+                            <input type="hidden" id="country_id" name="country_id" value="{{ old('country_id', $etablissement->country_id) }}">
+                            
+                            <div id="ville_suggestions" class="suggestions-dropdown" style="display: none;">
+                                <!-- Les suggestions seront chargées ici via AJAX -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="adresse" class="form-label-modern">Adresse complète *</label>
+                            <textarea class="form-control-modern" id="adresse" name="adresse" 
+                                      rows="2" placeholder="Ex: 123 Avenue des Champs-Élysées..." required>{{ old('adresse', $etablissement->adresse) }}</textarea>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="zip_code" class="form-label-modern">Code postal *</label>
+                            <input type="text" class="form-control-modern" id="zip_code" name="zip_code" 
+                                   value="{{ old('zip_code', $etablissement->zip_code) }}"
+                                   placeholder="Ex: 75001, 69002..." required>
+                        </div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <button type="button" class="btn btn-outline-secondary" onclick="prevStep(1)">
+                            <i class="fas fa-arrow-left me-2"></i>Précédent
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="nextStep(3)">
+                            Suivant <i class="fas fa-arrow-right ms-2"></i>
                         </button>
                     </div>
                 </div>
-            </div>
+                
+                <!-- Step 3: Activités -->
+                <div class="form-step" data-step="3">
+                    <h4 class="step-title"><i class="fas fa-tasks me-2"></i>Activités</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                                                <div class="activity-focus-panel">
+                                    <div class="activity-focus-copy">
+                                        <span class="activity-focus-kicker">Landing page</span>
+                                        <h5 class="activity-focus-title">Activit&eacute; mise en avant</h5>
+                                        <p class="activity-focus-text">Cette activit&eacute; principale aidera &agrave; piloter les blocs futurs de la landing page : menu food, forfait voyage, avis clients, formulaire contact, produit vedette, newsletter, etc.</p>
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-lg-7">
+                                            <label for="primary_activity_id" class="form-label-modern">Activit&eacute; principale</label>
+                                            <select class="form-control-modern" id="primary_activity_id" name="primary_activity_id">
+                                                <option value="">S&eacute;lectionner une activit&eacute; principale</option>
+                                            </select>
+                                            <div class="form-text">Choisissez l'activit&eacute; la plus repr&eacute;sentative de l'&eacute;tablissement.</div>
+                                        </div>
+                                        <div class="col-lg-5">
+                                            <label for="other_activity_label" class="form-label-modern">Indiquer une autre activit&eacute; sinon</label>
+                                            <input type="text"
+                                                   class="form-control-modern"
+                                                   id="other_activity_label"
+                                                   name="other_activity_label"
+                                                   value="{{ old('other_activity_label', $etablissement->other_activity_label) }}"
+                                                   placeholder="Ex : M&eacute;dias et newsletter">
+                                            <div class="form-text">Utilisez ce champ si aucune activit&eacute; existante ne correspond exactement.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <label for="activities" class="form-label-modern">Autres activit&eacute;s associ&eacute;es</label>
+                                <div class="activities-multiselect-container">
+                                    <div class="activities-search-container">
+                                        <input type="text" class="form-control-modern activities-search" 
+                                               placeholder="Rechercher une activité..." 
+                                               id="activitiesSearch">
+                                        <div class="activities-search-actions">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                    onclick="selectAllActivities()">
+                                                <i class="fas fa-check-double"></i> Tout sélectionner
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                    onclick="clearAllActivities()">
+                                                <i class="fas fa-times"></i> Tout désélectionner
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="activities-selection-container">
+                                        <div class="activities-available">
+                                            <div class="activities-list-header">
+                                                <h6>Activités disponibles</h6>
+                                                <span class="badge bg-info" id="availableCount">0</span>
+                                            </div>
+                                            <div class="activities-list" id="availableActivities">
+                                                <!-- Les activités seront chargées via API -->
+                                                <div class="loading-activities">
+                                                    <div class="spinner-border spinner-border-sm text-primary"></div>
+                                                    <span class="ms-2">Chargement des activités...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="activities-selection-controls">
+                                            <button type="button" class="btn btn-primary btn-sm" 
+                                                    onclick="addSelectedActivities()">
+                                                <i class="fas fa-arrow-right"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-primary btn-sm" 
+                                                    onclick="removeSelectedActivities()">
+                                                <i class="fas fa-arrow-left"></i>
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="activities-selected">
+                                            <div class="activities-list-header">
+                                                <h6>Activités sélectionnées</h6>
+                                                <span class="badge bg-success" id="selectedCount">0</span>
+                                            </div>
+                                            <div class="activities-list" id="selectedActivities">
+                                                <!-- Les activités sélectionnées apparaîtront ici -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <select multiple="multiple" class="form-control" name="activities[]" 
+                                            id="activitiesSelect" style="display: none;">
+                                        <!-- Les options sélectionnées seront ajoutées ici dynamiquement -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
+                            <i class="fas fa-arrow-left me-2"></i>Précédent
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="nextStep(4)">
+                            Suivant <i class="fas fa-arrow-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Accès client -->
+                <div class="form-step" data-step="4">
+                    <h4 class="step-title"><i class="fas fa-user-circle me-2"></i>Accès client (optionnel)</h4>
+
+                    @php($currentRoleId = optional($linkedUser?->roles?->first())->id)
+
+                    <div class="account-toggle-card mb-4">
+                        <div>
+                            <h5 class="account-toggle-title">Créer un accès client</h5>
+                            <p class="account-toggle-text mb-0">
+                                @if($linkedUser)
+                                    Ce compte est déjà lié à l’établissement. Vous pouvez mettre à jour ses informations ci-dessous.
+                                @else
+                                    Activez cette option si vous souhaitez créer un compte utilisateur pour cet établissement.
+                                @endif
+                            </p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            @if($linkedUser)
+                                <input type="hidden" name="create_login_account" value="1">
+                            @endif
+                            <input class="form-check-input" type="checkbox" id="create_login_account" name="create_login_account" value="1" {{ $shouldShowLoginFields ? 'checked' : '' }} {{ $linkedUser ? 'disabled' : '' }}>
+                        </div>
+                    </div>
+
+                    <div id="loginAccountHint" class="account-helper-note {{ $shouldShowLoginFields ? 'd-none' : '' }}">
+                        <i class="fas fa-circle-info me-2"></i>
+                        Aucun compte n’est encore lié à cet établissement. Vous pouvez laisser cette étape vide et créer un accès plus tard.
+                    </div>
+
+                    <div id="loginAccountFields" class="account-fields {{ $shouldShowLoginFields ? '' : 'd-none' }}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="user_name" class="form-label-modern">Nom complet</label>
+                                <input type="text" class="form-control-modern" id="user_name" name="user_name"
+                                       value="{{ old('user_name', $linkedUser->name ?? $etablissement->lname) }}"
+                                       placeholder="Ex: Jean Dupont">
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="user_email" class="form-label-modern">Email</label>
+                                <input type="email" class="form-control-modern" id="user_email" name="user_email"
+                                       value="{{ old('user_email', $linkedUser->email ?? $etablissement->email_contact) }}"
+                                       placeholder="Ex: contact@etablissement.com">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="password" class="form-label-modern">{{ $linkedUser ? 'Nouveau mot de passe' : 'Mot de passe' }}</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control-modern" id="password" name="password"
+                                           placeholder="{{ $linkedUser ? 'Laisser vide pour conserver le mot de passe actuel' : 'Minimum 8 caractères' }}">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('password')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">
+                                    {{ $linkedUser ? 'Optionnel : renseignez ce champ uniquement si vous voulez remplacer le mot de passe actuel.' : 'Minimum 8 caractères pour sécuriser le compte.' }}
+                                </small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="password_confirmation" class="form-label-modern">{{ $linkedUser ? 'Confirmer le nouveau mot de passe' : 'Confirmer le mot de passe' }}</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control-modern" id="password_confirmation"
+                                           name="password_confirmation" placeholder="{{ $linkedUser ? 'Répétez le nouveau mot de passe' : 'Répétez le mot de passe' }}">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('password_confirmation')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label for="role_id" class="form-label-modern">Type du compte</label>
+                                <div class="input-group">
+                                    <select class="form-control-modern" id="role_id" name="role_id">
+                                        <option value="">Sélectionner un rôle</option>
+                                        @foreach($roles as $role)
+                                        <option value="{{ $role->id }}" {{ (string) old('role_id', $currentRoleId) === (string) $role->id ? 'selected' : '' }}>
+                                            {{ $role->libelle }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label-modern">Statut de l’établissement</label>
+                        <div class="status-toggle">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {{ old('is_active', $etablissement->is_active) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="is_active">
+                                    <span class="status-label">Établissement actif</span>
+                                    <small class="text-muted d-block">L’établissement restera visible et exploitable dans l’administration.</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-actions">
+                        <button type="button" class="btn btn-outline-secondary" onclick="prevStep(3)">
+                            <i class="fas fa-arrow-left me-2"></i>Précédent
+                        </button>
+                        <button type="submit" class="btn btn-primary btn-pulse">
+                            <i class="fas fa-save me-2"></i>Mettre à jour l'établissement
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </main>
 
-<!-- Modal de suppression -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirmer la suppression</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                Êtes-vous sûr de vouloir supprimer l'établissement "{{ $etablissement->name }}" ?
-                <div class="alert alert-danger mt-2">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Cette action est irréversible. Toutes les données associées seront supprimées.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <form action="{{ route('etablissements.destroy', $etablissement) }}" method="POST" id="deleteForm">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 
 <style>
-    .input-group {
+    .dashboard-content {
+        padding-bottom: 2.5rem;
+    }
+
+    .etab-hero-strip {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+        padding: 1.5rem;
+        border-radius: 30px;
+        background:
+            radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 35%),
+            linear-gradient(135deg, #0f172a, #1d4ed8 55%, #38bdf8);
+        color: #fff;
+        box-shadow: 0 26px 52px rgba(15, 23, 42, 0.22);
+    }
+
+    .etab-hero-main {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.85rem;
+    }
+
+    .etab-hero-kicker {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(6px);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .etab-hero-title {
+        margin: 0;
+        font-size: clamp(1.55rem, 2vw, 2rem);
+        line-height: 1.18;
+        font-weight: 800;
+    }
+
+    .etab-hero-text {
+        margin: 0;
+        max-width: 62ch;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 0.98rem;
+        line-height: 1.65;
+    }
+
+    .etab-hero-grid {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .etab-hero-card {
+        padding: 1rem 1.05rem;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        backdrop-filter: blur(10px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+
+    .etab-hero-card-label {
+        display: block;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.72);
+        margin-bottom: 0.45rem;
+        font-weight: 700;
+    }
+
+    .etab-hero-card strong {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+        font-weight: 700;
+    }
+
+    .etab-hero-card small {
+        color: rgba(255, 255, 255, 0.76);
+        font-size: 0.86rem;
+        line-height: 1.45;
+    }
+
+    .main-card-modern {
+        border-radius: 30px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 30px 60px rgba(15, 23, 42, 0.08);
+    }
+
+    .card-header-modern {
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.9));
+        border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    .card-body-modern {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96));
+    }
+
+    .input-group{
         flex-wrap: nowrap !important;
     }
-    
-    /* Tabs Styles */
-    .nav-tabs {
-        border-bottom: 2px solid #dee2e6;
-        margin-bottom: 25px;
+    /* Stepper Styles */
+    .stepper-container {
+        margin-bottom: 40px;
     }
     
-    .nav-tabs .nav-link {
-        color: #6c757d;
-        font-weight: 500;
-        padding: 12px 20px;
-        border: none;
-        border-bottom: 3px solid transparent;
+    .stepper-progress {
+        height: 4px;
+        background: #e9ecef;
+        border-radius: 2px;
+        margin: 20px 0 40px;
+        position: relative;
+    }
+    
+    .stepper-progress-bar {
+        height: 100%;
+        background: #45b7d1;
+        border-radius: 2px;
+        width: 25%;
+        transition: width 0.3s ease;
+    }
+    
+    .stepper-steps {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+    }
+    
+    .stepper-step {
+        text-align: center;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .stepper-step.active .step-icon {
+        background: #45b7d1;
+        color: white;
+        transform: scale(1.1);
+        box-shadow: 0 0 0 4px rgba(69, 183, 209, 0.2);
+    }
+    
+    .stepper-step.completed .step-icon {
+        background: #28a745;
+        color: white;
+    }
+    
+    .step-icon {
+        width: 40px;
+        height: 40px;
+        background: #e9ecef;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        font-weight: 600;
         transition: all 0.3s ease;
     }
     
-    .nav-tabs .nav-link:hover {
+    .step-label {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #6c757d;
+    }
+    
+    .stepper-step.active .step-label {
         color: #45b7d1;
-        background-color: rgba(69, 183, 209, 0.05);
-        border-color: transparent;
+        font-weight: 600;
     }
     
-    .nav-tabs .nav-link.active {
-        color: #45b7d1;
-        background-color: transparent;
-        border-bottom: 3px solid #45b7d1;
-    }
-    
-    .tab-content {
-        padding: 0;
-        min-height: 400px;
-    }
-    
-    .tab-pane {
+    /* Form Steps */
+    .form-step {
+        display: none;
         animation: fadeIn 0.5s ease;
     }
     
-    .tab-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 25px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #f0f0f0;
+    .form-step.active {
+        display: block;
     }
     
-    .tab-title {
+    .step-title {
         font-size: 1.3rem;
         font-weight: 600;
         color: #333;
-        margin: 0;
+        margin-bottom: 25px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f0f0;
     }
     
-    .tab-form {
-        padding: 10px 0;
-    }
-    
-    .global-actions {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
+    .step-actions {
+        padding-top: 30px;
+        margin-top: 30px;
+        border-top: 1px solid #eaeaea;
+        display: flex;
+        justify-content: space-between;
     }
     
     /* Ville Search Suggestions */
@@ -637,25 +752,6 @@
         color: #6c757d;
     }
     
-    /* Toast Notifications */
-    .toast-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-    }
-    
-    /* Form States */
-    .form-data-saved {
-        border-left: 4px solid #28a745;
-        padding-left: 10px;
-    }
-    
-    .form-data-unsaved {
-        border-left: 4px solid #ffc107;
-        padding-left: 10px;
-    }
-    
     @keyframes fadeIn {
         from {
             opacity: 0;
@@ -668,11 +764,6 @@
     }
     
     @media (max-width: 768px) {
-        .nav-tabs .nav-link {
-            padding: 8px 12px;
-            font-size: 0.9rem;
-        }
-        
         .activities-selection-container {
             flex-direction: column;
         }
@@ -683,203 +774,241 @@
             margin: 10px 0;
         }
         
-        .global-actions {
+        .step-actions {
             flex-direction: column;
             gap: 10px;
         }
         
-        .global-actions .btn {
+        .step-actions .btn {
             width: 100%;
-            margin-bottom: 5px;
+        }
+    }
+.account-toggle-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1.15rem 1.25rem;
+    border: 1px solid rgba(59, 130, 246, 0.16);
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(239, 246, 255, 0.9));
+}
+.account-toggle-title {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+.account-toggle-text {
+    color: #475569;
+    font-size: 0.92rem;
+}
+.account-fields {
+    border: 1px solid #e2e8f0;
+    border-radius: 22px;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+    .account-helper-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+    padding: 0.95rem 1rem;
+    border-radius: 16px;
+    background: rgba(251, 191, 36, 0.12);
+        color: #92400e;
+        margin-bottom: 1rem;
+    }
+    .activity-focus-panel {
+        margin-bottom: 1.35rem;
+        padding: 1.35rem;
+        border-radius: 24px;
+        border: 1px solid rgba(14, 116, 144, 0.15);
+        background: linear-gradient(135deg, rgba(236, 253, 245, 0.9), rgba(239, 246, 255, 0.92));
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    }
+
+    .activity-focus-copy {
+        margin-bottom: 1rem;
+    }
+
+    .activity-focus-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(14, 116, 144, 0.1);
+        color: #0f766e;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .activity-focus-title {
+        margin: 0.9rem 0 0.35rem;
+        font-size: 1.12rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .activity-focus-text {
+        margin: 0;
+        color: #475569;
+        line-height: 1.65;
+    }
+    @media (max-width: 991px) {
+        .etab-hero-strip {
+            grid-template-columns: 1fr;
         }
     }
 </style>
-
 <script>
     // Variables globales
-    let etablissementId = {{ $etablissement->id }};
-    let allActivities = @json($activities);
+    let currentStep = 1;
+    let allActivities = [];
     let filteredActivities = [];
-    let selectedActivities = @json($selectedActivities);
+    let selectedActivities = @json(collect(old('activities', $selectedActivities))->map(fn ($id) => (string) $id)->values());
+    let initialPrimaryActivityId = @json(old('primary_activity_id', $etablissement->primary_activity_id));
     let debounceTimer;
     let villeSearchAbortController = null;
     
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialiser Bootstrap tabs
-        const tabEl = document.querySelector('#etablissementTabs');
+        // Initialiser le stepper
+        updateStepper();
         
-        // Charger les activités existantes
-        initActivities();
+        // Charger les activités via API
+        loadActivities();
         
         // Initialiser la recherche de ville
         initVilleSearch();
         
-        // Pré-remplir la recherche de ville
-        const villeSearch = document.getElementById('ville_search');
-        const villeInput = document.getElementById('ville');
-        if (villeSearch && villeInput.value) {
-            villeSearch.value = villeInput.value;
+        // Gérer la soumission du formulaire
+        const form = document.getElementById('editEtablissementForm');
+        const createLoginAccountCheckbox = document.getElementById('create_login_account');
+        const loginAccountFields = document.getElementById('loginAccountFields');
+        const loginAccountHint = document.getElementById('loginAccountHint');
+        const hasExistingUser = @json((bool) $etablissement->user);
+
+        function toggleEditLoginFields() {
+            const enabled = hasExistingUser || !!createLoginAccountCheckbox?.checked;
+            loginAccountFields?.classList.toggle('d-none', !enabled);
+            loginAccountHint?.classList.toggle('d-none', enabled);
         }
-        
-        // Gérer la soumission de chaque formulaire
-        setupFormSubmissions();
+
+        createLoginAccountCheckbox?.addEventListener('change', toggleEditLoginFields);
+        toggleEditLoginFields();
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Validation finale
+            if (validateAllSteps()) {
+                // Désactiver le bouton de soumission
+                const submitBtn = form.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    Mise à jour en cours...
+                `;
+                
+                // Soumettre le formulaire
+                this.submit();
+            }
+        });
         
         // Navigation rapide avec clavier
         document.addEventListener('keydown', function(e) {
-            // Ctrl + → pour passer au tab suivant
-            if (e.ctrlKey && e.key === 'ArrowRight') {
+            // Ctrl + N pour passer à l'étape suivante
+            if (e.ctrlKey && e.key === 'n') {
                 e.preventDefault();
-                navigateToNextTab();
+                nextStep(currentStep + 1);
             }
             
-            // Ctrl + ← pour revenir au tab précédent
-            if (e.ctrlKey && e.key === 'ArrowLeft') {
+            // Ctrl + P pour revenir à l'étape précédente
+            if (e.ctrlKey && e.key === 'p') {
                 e.preventDefault();
-                navigateToPrevTab();
+                prevStep(currentStep - 1);
             }
         });
     });
     
-    // Initialisation des activités avec les données existantes
-    function initActivities() {
-        // Transformer les données PHP en format JavaScript
-        allActivities = allActivities.map(activity => ({
-            id: activity.id,
-            name: activity.name,
-            description: activity.description || '',
-            category: activity.category || '',
-            selected: selectedActivities.includes(activity.id)
-        }));
-        
-        filteredActivities = [...allActivities];
-        renderActivities();
-        
-        // Marquer les activités sélectionnées
-        selectedActivities.forEach(activityId => {
-            const activity = allActivities.find(a => a.id == activityId);
-            if (activity) {
-                activity.selected = true;
-            }
+    // Navigation entre les étapes
+    function nextStep(step) {
+        if (validateStep(currentStep)) {
+            currentStep = step;
+            updateStepper();
+            showStep(step);
+            scrollToStep();
+        }
+    }
+    
+    function prevStep(step) {
+        currentStep = step;
+        updateStepper();
+        showStep(step);
+        scrollToStep();
+    }
+    
+    function showStep(step) {
+        // Masquer toutes les étapes
+        document.querySelectorAll('.form-step').forEach(stepEl => {
+            stepEl.classList.remove('active');
         });
-    }
-    
-    // Navigation entre les tabs
-    function nextTab() {
-        navigateToNextTab();
-    }
-    
-    function prevTab() {
-        navigateToPrevTab();
-    }
-    
-    function navigateToNextTab() {
-        const activeTab = document.querySelector('.nav-link.active');
-        if (!activeTab) return;
         
-        const nextTab = activeTab.closest('li').nextElementSibling;
-        if (nextTab) {
-            const nextTabButton = nextTab.querySelector('.nav-link');
-            new bootstrap.Tab(nextTabButton).show();
-        }
-    }
-    
-    function navigateToPrevTab() {
-        const activeTab = document.querySelector('.nav-link.active');
-        if (!activeTab) return;
-        
-        const prevTab = activeTab.closest('li').previousElementSibling;
-        if (prevTab) {
-            const prevTabButton = prevTab.querySelector('.nav-link');
-            new bootstrap.Tab(prevTabButton).show();
-        }
-    }
-    
-    // Configuration des soumissions de formulaires
-    function setupFormSubmissions() {
-        // Gérer la soumission de chaque formulaire
-        document.querySelectorAll('.tab-form').forEach(form => {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                submitForm(this);
-            });
-        });
-    }
-    
-    // Soumission des formulaires individuels
-    function submitForm(form) {
-        const formData = new FormData(form);
-        const formType = formData.get('form_type');
-        
-        // Validation spécifique au formulaire
-        if (!validateForm(form, formType)) {
-            return;
-        }
-        
-        // Pour les activités, mettre à jour le select caché
-        if (formType === 'activites') {
-            updateHiddenSelect();
-            // Ajouter les activités au FormData
-            selectedActivities.forEach(activityId => {
-                formData.append('activities[]', activityId);
-            });
-        }
-        
-        // Afficher un indicateur de chargement
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalContent = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = `
-            <div class="spinner-border spinner-border-sm me-1" role="status">
-                <span class="visually-hidden">Chargement...</span>
-            </div>
-            Mise à jour...
-        `;
-        
-        // Soumettre via AJAX
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalContent;
+        // Afficher l'étape courante
+        const currentStepEl = document.querySelector(`.form-step[data-step="${step}"]`);
+        if (currentStepEl) {
+            currentStepEl.classList.add('active');
             
-            if (data.success) {
-                showNotification(data.message || 'Mise à jour réussie', 'success');
-                
-                // Marquer le formulaire comme sauvegardé
-                form.classList.add('form-data-saved');
-                form.classList.remove('form-data-unsaved');
-                
-                // Si c'est le formulaire d'accès et qu'un nouvel utilisateur est créé
-                if (formType === 'acces' && data.user_created) {
-                    // Rafraîchir la page pour afficher les nouvelles infos
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1500);
+            // Focus sur le premier champ de l'étape
+            setTimeout(() => {
+                const firstInput = currentStepEl.querySelector('input, select, textarea');
+                if (firstInput) {
+                    firstInput.focus();
                 }
-            } else {
-                throw new Error(data.message || 'Erreur lors de la mise à jour');
+            }, 100);
+        }
+    }
+    
+    function updateStepper() {
+        // Mettre à jour la barre de progression
+        const progress = ((currentStep - 1) / 3) * 100;
+        const progressBar = document.getElementById('stepperProgressBar');
+        if (progressBar) {
+            progressBar.style.width = progress + '%';
+        }
+        
+        // Mettre à jour les étapes
+        document.querySelectorAll('.stepper-step').forEach((stepEl, index) => {
+            const stepNum = parseInt(stepEl.dataset.step);
+            stepEl.classList.remove('active', 'completed');
+            
+            if (stepNum < currentStep) {
+                stepEl.classList.add('completed');
+            } else if (stepNum === currentStep) {
+                stepEl.classList.add('active');
             }
-        })
-        .catch(error => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalContent;
-            showNotification(error.message, 'danger');
         });
     }
     
-    // Validation des formulaires
-    function validateForm(form, formType) {
+    function scrollToStep() {
+        const stepEl = document.querySelector(`.form-step[data-step="${currentStep}"]`);
+        if (stepEl) {
+            stepEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+    
+    // Validation des étapes
+    function validateStep(step) {
         let isValid = true;
         
-        switch(formType) {
-            case 'info':
-                const name = form.querySelector('#name');
+        switch(step) {
+            case 1:
+                const name = document.getElementById('name');
                 if (!name.value.trim()) {
                     showError(name, 'Le nom est obligatoire');
                     isValid = false;
@@ -888,11 +1017,11 @@
                 }
                 break;
                 
-            case 'localisation':
-                const ville = form.querySelector('#ville');
-                const villeSearch = form.querySelector('#ville_search');
-                const adresse = form.querySelector('#adresse');
-                const zipCode = form.querySelector('#zip_code');
+            case 2:
+                const ville = document.getElementById('ville');
+                const villeSearch = document.getElementById('ville_search');
+                const adresse = document.getElementById('adresse');
+                const zipCode = document.getElementById('zip_code');
                 
                 if (!ville.value) {
                     showError(villeSearch, 'Veuillez sélectionner une ville');
@@ -915,48 +1044,80 @@
                     clearError(zipCode);
                 }
                 break;
-                
-            case 'activites':
-                if (selectedActivities.length === 0) {
-                    showNotification('Veuillez sélectionner au moins une activité', 'warning');
+            case 3:
+                const primaryActivity = document.getElementById('primary_activity_id');
+                const otherActivity = document.getElementById('other_activity_label');
+                const hasPrimaryActivity = !!primaryActivity?.value;
+                const hasOtherActivity = !!otherActivity?.value.trim();
+                const hasSelectedActivities = selectedActivities.length > 0;
+
+                if (!hasPrimaryActivity && !hasOtherActivity && !hasSelectedActivities) {
+                    showError(primaryActivity, 'Veuillez choisir une activit\u00e9 principale ou renseigner une autre activit\u00e9');
+                    if (otherActivity) {
+                        otherActivity.classList.add('is-invalid');
+                    }
+                    showNotification('Veuillez choisir une activit\u00e9 principale, renseigner une autre activit\u00e9 ou s\u00e9lectionner des activit\u00e9s associ\u00e9es.', 'warning');
                     isValid = false;
+                } else {
+                    clearError(primaryActivity);
+                    if (otherActivity) {
+                        clearError(otherActivity);
+                    }
                 }
                 break;
                 
-            case 'acces':
-                const userName = form.querySelector('#user_name');
-                const userEmail = form.querySelector('#user_email');
-                const password = form.querySelector('#password');
-                const passwordConfirmation = form.querySelector('#password_confirmation');
-                
+            case 4:
+                const createLoginAccount = document.getElementById('create_login_account');
+                const userName = document.getElementById('user_name');
+                const userEmail = document.getElementById('user_email');
+                const password = document.getElementById('password');
+                const passwordConfirmation = document.getElementById('password_confirmation');
+                const roleId = document.getElementById('role_id');
+                const isPasswordProvided = password.value.trim().length > 0 || passwordConfirmation.value.trim().length > 0;
+                const wantsAccount = hasExistingUser || !!createLoginAccount?.checked;
+
+                if (!wantsAccount) {
+                    [userName, userEmail, password, passwordConfirmation, roleId].forEach(clearError);
+                    break;
+                }
+
                 if (!userName.value.trim()) {
                     showError(userName, 'Le nom est obligatoire');
                     isValid = false;
                 } else {
                     clearError(userName);
                 }
-                
+
                 if (!userEmail.value.trim() || !isValidEmail(userEmail.value)) {
                     showError(userEmail, 'Veuillez entrer un email valide');
                     isValid = false;
                 } else {
                     clearError(userEmail);
                 }
-                
-                // Validation du mot de passe seulement s'il est fourni
-                if (password.value) {
+
+                if (!roleId.value) {
+                    showError(roleId, 'Veuillez sélectionner un rôle');
+                    isValid = false;
+                } else {
+                    clearError(roleId);
+                }
+
+                if (!hasExistingUser || isPasswordProvided) {
                     if (password.value.length < 8) {
                         showError(password, 'Le mot de passe doit contenir au moins 8 caractères');
                         isValid = false;
                     } else {
                         clearError(password);
                     }
-                    
-                // Validation des formulaires (suite)
-                if (password.value !== passwordConfirmation.value) {
-                    showError(passwordConfirmation, 'Les mots de passe ne correspondent pas');
-                    isValid = false;
+
+                    if (password.value !== passwordConfirmation.value) {
+                        showError(passwordConfirmation, 'Les mots de passe ne correspondent pas');
+                        isValid = false;
+                    } else {
+                        clearError(passwordConfirmation);
+                    }
                 } else {
+                    clearError(password);
                     clearError(passwordConfirmation);
                 }
                 break;
@@ -965,181 +1126,78 @@
         return isValid;
     }
     
-    // Gestion des activités (identique à votre code original)
-    function renderActivities() {
-        const availableContainer = document.getElementById('availableActivities');
-        const selectedContainer = document.getElementById('selectedActivities');
-        
-        if (!availableContainer || !selectedContainer) return;
-        
-        // Filtrer les activités disponibles (non sélectionnées)
-        const available = filteredActivities.filter(a => !selectedActivities.includes(a.id.toString()));
-        const selected = filteredActivities.filter(a => selectedActivities.includes(a.id.toString()));
-        
-        // Mettre à jour les compteurs
-        const availableCount = document.getElementById('availableCount');
-        const selectedCount = document.getElementById('selectedCount');
-        
-        if (availableCount) availableCount.textContent = available.length;
-        if (selectedCount) selectedCount.textContent = selected.length;
-        
-        // Afficher les activités disponibles
-        availableContainer.innerHTML = '';
-        if (available.length === 0) {
-            availableContainer.innerHTML = '<div class="text-muted text-center py-5">Aucune activité disponible</div>';
-        } else {
-            available.forEach(activity => {
-                const activityEl = createActivityElement(activity, false);
-                availableContainer.appendChild(activityEl);
-            });
-        }
-        
-        // Afficher les activités sélectionnées
-        selectedContainer.innerHTML = '';
-        if (selected.length === 0) {
-            selectedContainer.innerHTML = '<div class="text-muted text-center py-5">Aucune activité sélectionnée</div>';
-        } else {
-            selected.forEach(activity => {
-                const activityEl = createActivityElement(activity, true);
-                selectedContainer.appendChild(activityEl);
-            });
-        }
-        
-        // Mettre à jour le select caché
-        updateHiddenSelect();
-    }
-    
-    function createActivityElement(activity, isSelected) {
-        const div = document.createElement('div');
-        div.className = `activity-item ${isSelected ? 'selected' : ''}`;
-        div.dataset.activityId = activity.id;
-        
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'activity-checkbox';
-        checkbox.checked = isSelected;
-        checkbox.addEventListener('change', function() {
-            toggleActivitySelection(activity.id.toString(), this.checked);
-        });
-        
-        const content = document.createElement('div');
-        content.className = 'activity-content';
-        
-        const name = document.createElement('div');
-        name.className = 'activity-name';
-        name.textContent = activity.name;
-        
-        content.appendChild(name);
-        
-        // Ajouter la description si disponible
-        if (activity.description) {
-            const description = document.createElement('div');
-            description.className = 'activity-description small text-muted mt-1';
-            description.textContent = activity.description.length > 100 
-                ? activity.description.substring(0, 100) + '...' 
-                : activity.description;
-            content.appendChild(description);
-        }
-        
-        // Ajouter la catégorie si disponible
-        if (activity.category) {
-            const category = document.createElement('div');
-            category.className = 'activity-category mt-1';
-            category.innerHTML = `<span class="badge bg-light text-dark small">${activity.category}</span>`;
-            content.appendChild(category);
-        }
-        
-        div.appendChild(checkbox);
-        div.appendChild(content);
-        
-        return div;
-    }
-    
-    function toggleActivitySelection(activityId, selected) {
-        if (selected && !selectedActivities.includes(activityId)) {
-            selectedActivities.push(activityId);
-        } else if (!selected) {
-            selectedActivities = selectedActivities.filter(id => id !== activityId);
-        }
-        
-        renderActivities();
-    }
-    
-    function addSelectedActivities() {
-        const checkboxes = document.querySelectorAll('#availableActivities .activity-checkbox:checked');
-        checkboxes.forEach(cb => {
-            const activityId = cb.closest('.activity-item').dataset.activityId;
-            if (!selectedActivities.includes(activityId)) {
-                selectedActivities.push(activityId);
+    function validateAllSteps() {
+        for (let i = 1; i <= 4; i++) {
+            if (!validateStep(i)) {
+                // Aller à l'étape avec erreur
+                currentStep = i;
+                updateStepper();
+                showStep(i);
+                scrollToStep();
+                return false;
             }
-        });
-        renderActivities();
+        }
+        return true;
     }
     
-    function removeSelectedActivities() {
-        const checkboxes = document.querySelectorAll('#selectedActivities .activity-checkbox:checked');
-        checkboxes.forEach(cb => {
-            const activityId = cb.closest('.activity-item').dataset.activityId;
-            selectedActivities = selectedActivities.filter(id => id !== activityId);
-        });
-        renderActivities();
-    }
-    
-    function selectAllActivities() {
-        // Sélectionner toutes les activités disponibles
-        const available = filteredActivities.filter(a => !selectedActivities.includes(a.id.toString()));
-        available.forEach(activity => {
-            if (!selectedActivities.includes(activity.id.toString())) {
-                selectedActivities.push(activity.id.toString());
-            }
-        });
-        renderActivities();
-    }
-    
-    function clearAllActivities() {
-        selectedActivities = [];
-        renderActivities();
-    }
-    
-    function updateHiddenSelect() {
-        const select = document.getElementById('activitiesSelect');
-        if (!select) return;
+    function showError(input, message) {
+        // Retirer les bordures précédentes
+        input.classList.remove('is-valid');
+        input.classList.add('is-invalid');
         
-        select.innerHTML = '';
+        // Ajouter le message d'erreur
+        let errorDiv = input.parentNode.querySelector('.invalid-feedback');
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'invalid-feedback';
+            input.parentNode.appendChild(errorDiv);
+        }
+        errorDiv.textContent = message;
         
-        selectedActivities.forEach(activityId => {
-            const activity = allActivities.find(a => a.id.toString() === activityId);
-            if (activity) {
-                const option = document.createElement('option');
-                option.value = activity.id;
-                option.textContent = activity.name;
-                option.selected = true;
-                select.appendChild(option);
-            }
+        // Focus sur le champ en erreur
+        input.focus();
+    }
+    
+    function clearError(input) {
+        input.classList.remove('is-invalid');
+        input.classList.add('is-valid');
+        
+        const errorDiv = input.parentNode.querySelector('.invalid-feedback');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+    }
+    
+    function showNotification(message, type = 'info') {
+        // Créer une notification toast
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+        
+        // Nettoyer après fermeture
+        toast.addEventListener('hidden.bs.toast', function() {
+            toast.remove();
         });
     }
     
-    // Recherche d'activités
-    const activitiesSearch = document.getElementById('activitiesSearch');
-    if (activitiesSearch) {
-        activitiesSearch.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            
-            if (!searchTerm) {
-                filteredActivities = [...allActivities];
-            } else {
-                filteredActivities = allActivities.filter(activity =>
-                    activity.name.toLowerCase().includes(searchTerm) ||
-                    (activity.description && activity.description.toLowerCase().includes(searchTerm)) ||
-                    (activity.category && activity.category.toLowerCase().includes(searchTerm))
-                );
-            }
-            
-            renderActivities();
-        });
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
     
-    // Recherche de ville (identique à votre code original)
+    // Recherche de ville avec AJAX Laravel
     function initVilleSearch() {
         const villeSearch = document.getElementById('ville_search');
         const suggestions = document.getElementById('ville_suggestions');
@@ -1149,10 +1207,12 @@
         villeSearch.addEventListener('input', function() {
             const searchTerm = this.value.trim();
             
+            // Annuler la requête précédente
             if (villeSearchAbortController) {
                 villeSearchAbortController.abort();
             }
             
+            // Annuler le timer précédent
             clearTimeout(debounceTimer);
             
             if (searchTerm.length < 2) {
@@ -1160,6 +1220,7 @@
                 return;
             }
             
+            // Afficher un indicateur de chargement
             suggestions.innerHTML = `
                 <div class="suggestion-item">
                     <div class="d-flex align-items-center">
@@ -1170,6 +1231,7 @@
             `;
             suggestions.style.display = 'block';
             
+            // Debounce pour éviter trop d'appels API
             debounceTimer = setTimeout(() => {
                 fetchVilles(searchTerm);
             }, 300);
@@ -1193,6 +1255,31 @@
         villeSearch.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 suggestions.style.display = 'none';
+            }
+        });
+        
+        // Navigation au clavier dans les suggestions
+        villeSearch.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                const items = suggestions.querySelectorAll('.suggestion-item:not(.suggestion-optgroup)');
+                if (items.length === 0) return;
+                
+                const currentIndex = Array.from(items).indexOf(document.activeElement);
+                
+                if (e.key === 'ArrowDown') {
+                    if (currentIndex < items.length - 1) {
+                        items[currentIndex + 1].focus();
+                    } else {
+                        items[0].focus();
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    if (currentIndex > 0) {
+                        items[currentIndex - 1].focus();
+                    } else {
+                        items[items.length - 1].focus();
+                    }
+                }
             }
         });
     }
@@ -1426,136 +1513,272 @@
         
         // Afficher une notification
         showNotification(`Ville sélectionnée: ${element.dataset.name}`, 'success');
+        
+        // Focus sur le champ suivant
+        setTimeout(() => {
+            document.getElementById('adresse').focus();
+        }, 100);
     }
     
-    // Fonctions utilitaires
-    function showError(input, message) {
-        input.classList.remove('is-valid');
-        input.classList.add('is-invalid');
+    // Gestion des activités avec AJAX Laravel
+    function loadActivities() {
+        const availableContainer = document.getElementById('availableActivities');
+        if (!availableContainer) return;
         
-        let errorDiv = input.parentNode.querySelector('.invalid-feedback');
-        if (!errorDiv) {
-            errorDiv = document.createElement('div');
-            errorDiv.className = 'invalid-feedback';
-            input.parentNode.appendChild(errorDiv);
-        }
-        errorDiv.textContent = message;
-        
-        input.focus();
-    }
-    
-    function clearError(input) {
-        input.classList.remove('is-invalid');
-        input.classList.add('is-valid');
-        
-        const errorDiv = input.parentNode.querySelector('.invalid-feedback');
-        if (errorDiv) {
-            errorDiv.remove();
-        }
-    }
-    
-    function showNotification(message, type = 'info') {
-        const toastContainer = document.querySelector('.toast-container') || createToastContainer();
-        const toastId = 'toast-' + Date.now();
-        
-        const toast = document.createElement('div');
-        toast.id = toastId;
-        toast.className = `toast align-items-center text-bg-${type} border-0`;
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-                    ${message}
+        availableContainer.innerHTML = `
+            <div class="loading-activities">
+                <div class="d-flex align-items-center justify-content-center py-5">
+                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                    <span>Chargement des activités...</span>
                 </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="document.getElementById('${toastId}').remove()"></button>
             </div>
         `;
         
-        toastContainer.appendChild(toast);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         
-        setTimeout(() => {
-            toast.classList.add('show');
-        }, 10);
-        
-        setTimeout(() => {
-            if (document.getElementById(toastId)) {
-                document.getElementById(toastId).remove();
+        // Envoyer la requête AJAX à l'API Laravel pour les activités
+        fetch('{{ route("api.activities.index") }}', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
             }
-        }, 5000);
-    }
-    
-    function createToastContainer() {
-        const container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-        return container;
-    }
-    
-    function isValidEmail(email) {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-    
-    // Fonction pour afficher le modal de suppression
-    function confirmDelete() {
-        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        deleteModal.show();
-    }
-    
-    // Gestion de la suppression
-    document.addEventListener('DOMContentLoaded', function() {
-        const deleteForm = document.getElementById('deleteForm');
-        if (deleteForm) {
-            deleteForm.addEventListener('submit', function(e) {
-                e.preventDefault();
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erreur lors du chargement des activités: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.activities) {
+                allActivities = data.activities.map(activity => ({
+                    id: activity.id,
+                    name: activity.name,
+                    description: activity.description || '',
+                    category: activity.category || '',
+                    selected: false
+                }));
                 
-                const deleteBtn = this.querySelector('button[type="submit"]');
-                const originalContent = deleteBtn.innerHTML;
-                deleteBtn.disabled = true;
-                deleteBtn.innerHTML = `
-                    <div class="spinner-border spinner-border-sm me-2" role="status">
-                        <span class="visually-hidden">Chargement...</span>
+                filteredActivities = [...allActivities];
+                populatePrimaryActivitySelect();
+                renderActivities();
+                showNotification(`${allActivities.length} activités chargées`, 'success');
+            } else {
+                showActivitiesError(data.message || 'Erreur lors du chargement des activités');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showActivitiesError('Erreur de connexion au serveur');
+        });
+    }
+    
+    function showActivitiesError(message) {
+        const availableContainer = document.getElementById('availableActivities');
+        availableContainer.innerHTML = `
+            <div class="alert alert-danger">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <div>
+                        <div class="fw-semibold">${message}</div>
+                        <button class="btn btn-sm btn-outline-danger mt-2" onclick="loadActivities()">
+                            <i class="fas fa-redo me-1"></i>Réessayer
+                        </button>
                     </div>
-                    Suppression...
-                `;
-                
-                fetch(this.action, {
-                    method: 'POST',
-                    body: new FormData(this),
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showNotification('Établissement supprimé avec succès', 'success');
-                        
-                        // Fermer le modal
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
-                        modal.hide();
-                        
-                        // Rediriger après 1.5 secondes
-                        setTimeout(() => {
-                            window.location.href = data.redirect || '{{ route("etablissements.index") }}';
-                        }, 1500);
-                    } else {
-                        throw new Error(data.message || 'Erreur lors de la suppression');
-                    }
-                })
-                .catch(error => {
-                    deleteBtn.disabled = false;
-                    deleteBtn.innerHTML = originalContent;
-                    showNotification(error.message, 'danger');
-                });
+                </div>
+            </div>
+        `;
+    }
+    
+function populatePrimaryActivitySelect() {
+        const select = document.getElementById('primary_activity_id');
+        if (!select) return;
+
+        const currentValue = select.value || (initialPrimaryActivityId ? String(initialPrimaryActivityId) : '') || (selectedActivities[0] || '');
+        select.innerHTML = '<option value="">S&eacute;lectionner une activit&eacute; principale</option>';
+
+        allActivities.forEach((activity) => {
+            const option = document.createElement('option');
+            option.value = activity.id;
+            option.textContent = activity.category ? `${activity.name} - ${activity.category}` : activity.name;
+            select.appendChild(option);
+        });
+
+        if (currentValue && Array.from(select.options).some((option) => option.value === currentValue)) {
+            select.value = currentValue;
+        }
+    }
+
+    function renderActivities() {
+        const availableContainer = document.getElementById('availableActivities');
+        const selectedContainer = document.getElementById('selectedActivities');
+        
+        if (!availableContainer || !selectedContainer) return;
+        
+        // Filtrer les activités disponibles (non sélectionnées)
+        const available = filteredActivities.filter(a => !selectedActivities.includes(a.id.toString()));
+        const selected = filteredActivities.filter(a => selectedActivities.includes(a.id.toString()));
+        
+        // Mettre à jour les compteurs
+        const availableCount = document.getElementById('availableCount');
+        const selectedCount = document.getElementById('selectedCount');
+        
+        if (availableCount) availableCount.textContent = available.length;
+        if (selectedCount) selectedCount.textContent = selected.length;
+        
+        // Afficher les activités disponibles
+        availableContainer.innerHTML = '';
+        if (available.length === 0) {
+            availableContainer.innerHTML = '<div class="text-muted text-center py-5">Aucune activité disponible</div>';
+        } else {
+            available.forEach(activity => {
+                const activityEl = createActivityElement(activity, false);
+                availableContainer.appendChild(activityEl);
             });
         }
-    });
+        
+        // Afficher les activités sélectionnées
+        selectedContainer.innerHTML = '';
+        if (selected.length === 0) {
+            selectedContainer.innerHTML = '<div class="text-muted text-center py-5">Aucune activité sélectionnée</div>';
+        } else {
+            selected.forEach(activity => {
+                const activityEl = createActivityElement(activity, true);
+                selectedContainer.appendChild(activityEl);
+            });
+        }
+        
+        // Mettre à jour le select caché
+        updateHiddenSelect();
+    }
     
-    // Fonctions exportées globalement
-    window.nextTab = nextTab;
-    window.prevTab = prevTab;
-    window.togglePassword = function(inputId) {
+    function createActivityElement(activity, isSelected) {
+        const div = document.createElement('div');
+        div.className = `activity-item ${isSelected ? 'selected' : ''}`;
+        div.dataset.activityId = activity.id;
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'activity-checkbox';
+        checkbox.checked = isSelected;
+        checkbox.addEventListener('change', function() {
+            toggleActivitySelection(activity.id.toString(), this.checked);
+        });
+        
+        const content = document.createElement('div');
+        content.className = 'activity-content';
+        
+        const name = document.createElement('div');
+        name.className = 'activity-name';
+        name.textContent = activity.name;
+        
+        content.appendChild(name);
+        
+        // Ajouter la description si disponible
+        if (activity.description) {
+            const description = document.createElement('div');
+            description.className = 'activity-description small text-muted mt-1';
+            description.textContent = activity.description.length > 100 
+                ? activity.description.substring(0, 100) + '...' 
+                : activity.description;
+            content.appendChild(description);
+        }
+        
+        // Ajouter la catégorie si disponible
+        if (activity.category) {
+            const category = document.createElement('div');
+            category.className = 'activity-category mt-1';
+            category.innerHTML = `<span class="badge bg-light text-dark small">${activity.category}</span>`;
+            content.appendChild(category);
+        }
+        
+        div.appendChild(checkbox);
+        div.appendChild(content);
+        
+        return div;
+    }
+    
+    function toggleActivitySelection(activityId, selected) {
+        if (selected && !selectedActivities.includes(activityId)) {
+            selectedActivities.push(activityId);
+        } else if (!selected) {
+            selectedActivities = selectedActivities.filter(id => id !== activityId);
+        }
+        
+        renderActivities();
+    }
+    
+    function addSelectedActivities() {
+        const checkboxes = document.querySelectorAll('#availableActivities .activity-checkbox:checked');
+        checkboxes.forEach(cb => {
+            const activityId = cb.closest('.activity-item').dataset.activityId;
+            if (!selectedActivities.includes(activityId)) {
+                selectedActivities.push(activityId);
+            }
+        });
+        renderActivities();
+    }
+    
+    function removeSelectedActivities() {
+        const checkboxes = document.querySelectorAll('#selectedActivities .activity-checkbox:checked');
+        checkboxes.forEach(cb => {
+            const activityId = cb.closest('.activity-item').dataset.activityId;
+            selectedActivities = selectedActivities.filter(id => id !== activityId);
+        });
+        renderActivities();
+    }
+    
+    function selectAllActivities() {
+        selectedActivities = filteredActivities.map(a => a.id.toString());
+        renderActivities();
+    }
+    
+    function clearAllActivities() {
+        selectedActivities = [];
+        renderActivities();
+    }
+    
+    function updateHiddenSelect() {
+        const select = document.getElementById('activitiesSelect');
+        if (!select) return;
+        
+        select.innerHTML = '';
+        
+        selectedActivities.forEach(activityId => {
+            const activity = allActivities.find(a => a.id.toString() === activityId);
+            if (activity) {
+                const option = document.createElement('option');
+                option.value = activity.id;
+                option.textContent = activity.name;
+                option.selected = true;
+                select.appendChild(option);
+            }
+        });
+    }
+    
+    // Recherche d'activités
+    const activitiesSearch = document.getElementById('activitiesSearch');
+    if (activitiesSearch) {
+        activitiesSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            if (!searchTerm) {
+                filteredActivities = [...allActivities];
+            } else {
+                filteredActivities = allActivities.filter(activity =>
+                    activity.name.toLowerCase().includes(searchTerm) ||
+                    (activity.description && activity.description.toLowerCase().includes(searchTerm)) ||
+                    (activity.category && activity.category.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            renderActivities();
+        });
+    }
+    
+    // Fonctions utilitaires
+    function togglePassword(inputId) {
         const input = document.getElementById(inputId);
         if (!input) return;
         
@@ -1571,12 +1794,66 @@
             icon.classList.remove('fa-eye-slash');
             icon.classList.add('fa-eye');
         }
-    };
+    }
     
+    function formatPhoneNumber(input) {
+        const phoneInput = document.getElementById('phone');
+        if (!phoneInput) return;
+        
+        let value = phoneInput.value.replace(/\D/g, '');
+        
+        if (value.length > 10) {
+            value = value.substring(0, 10);
+        }
+        
+        if (value.length >= 6) {
+            value = value.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+        } else if (value.length >= 3) {
+            value = value.replace(/(\d{3})(\d{1,3})/, '$1-$2');
+        }
+        
+        phoneInput.value = value;
+    }
+    
+    function formatZipCode(input) {
+        const zipInput = document.getElementById('zip_code');
+        if (!zipInput) return;
+        
+        let value = zipInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        
+        if (value.length > 6) {
+            value = value.substring(0, 6);
+        }
+        
+        if (value.length > 3) {
+            value = value.substring(0, 3) + ' ' + value.substring(3);
+        }
+        
+        zipInput.value = value;
+    }
+    
+    // Initialisation des formatteurs
+    document.addEventListener('DOMContentLoaded', function() {
+        const phoneInput = document.getElementById('phone');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', formatPhoneNumber);
+        }
+        
+        const zipInput = document.getElementById('zip_code');
+        if (zipInput) {
+            zipInput.addEventListener('input', formatZipCode);
+        }
+    });
+    
+    // Export des fonctions pour utilisation globale
+    window.nextStep = nextStep;
+    window.prevStep = prevStep;
+    window.togglePassword = togglePassword;
     window.selectAllActivities = selectAllActivities;
     window.clearAllActivities = clearAllActivities;
     window.addSelectedActivities = addSelectedActivities;
     window.removeSelectedActivities = removeSelectedActivities;
-    window.confirmDelete = confirmDelete;
+
+
 </script>
 @endsection
