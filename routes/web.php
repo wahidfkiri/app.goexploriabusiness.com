@@ -17,7 +17,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\GlobalSearchController;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use App\Http\Requests\EmailVerificationRequest;
 use Illuminate\Http\Request;
 
 /*
@@ -67,6 +67,11 @@ Route::post('/logout', function () {
 })->name('logout');
 
 // Email Verification Routes
+Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+    return redirect()->route('home');
+})->middleware('signed')->name('verification.verify');
+
 Route::middleware('auth')->group(function () {
     Route::get('/email/verify', function () {
         if (auth()->user()->hasVerifiedEmail()) {
@@ -74,11 +79,6 @@ Route::middleware('auth')->group(function () {
         }
         return view('auth.verify-email');
     })->name('verification.notice');
-
-    Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
-        $request->fulfill();
-        return redirect()->route('dashboard');
-    })->middleware('signed')->name('verification.verify');
 
     Route::post('/email/verify/resend', function (Request $request) {
         $request->user()->sendEmailVerificationNotification();
