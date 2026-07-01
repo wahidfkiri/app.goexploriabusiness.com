@@ -30,94 +30,7 @@
             position: relative;
         }
         
-        /* Cercles animés en fond - RÉDUITS ET SANS OPACITÉ */
-        .bg-circles {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            overflow: hidden;
-        }
-        
-        .circle {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(20px); /* Réduit le blur */
-            animation: float 20s infinite linear;
-        }
-        
-        .circle:nth-child(1) {
-            width: 150px;
-            height: 150px;
-            background: linear-gradient(45deg, #3B82F6, #8B5CF6);
-            top: 10%;
-            left: 5%;
-            animation-delay: 0s;
-        }
-        
-        .circle:nth-child(2) {
-            width: 200px;
-            height: 200px;
-            background: linear-gradient(45deg, #10B981, #3B82F6);
-            top: 60%;
-            right: 10%;
-            animation-delay: -5s;
-        }
-        
-        .circle:nth-child(3) {
-            width: 120px;
-            height: 120px;
-            background: linear-gradient(45deg, #8B5CF6, #EC4899);
-            bottom: 10%;
-            left: 20%;
-            animation-delay: -10s;
-        }
-        
-        .circle:nth-child(4) {
-            width: 180px;
-            height: 180px;
-            background: linear-gradient(45deg, #F59E0B, #10B981);
-            top: 20%;
-            right: 20%;
-            animation-delay: -7s;
-        }
-        
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0) rotate(0deg);
-            }
-            25% {
-                transform: translateY(-20px) rotate(90deg);
-            }
-            50% {
-                transform: translateY(20px) rotate(180deg);
-            }
-            75% {
-                transform: translateY(-10px) rotate(270deg);
-            }
-        }
-        
-        /* Animation des cercles supplémentaires */
-        .circle:nth-child(5) {
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(45deg, #EC4899, #F59E0B);
-            bottom: 30%;
-            right: 5%;
-            animation-delay: -12s;
-        }
-        
-        .circle:nth-child(6) {
-            width: 90px;
-            height: 90px;
-            background: linear-gradient(45deg, #06B6D4, #3B82F6);
-            top: 70%;
-            left: 5%;
-            animation-delay: -3s;
-            animation-duration: 25s;
-        }
+
         
         .card {
             background: white;
@@ -318,20 +231,15 @@
     </style>
 </head>
 <body>
-    <!-- Cercles colorés animés en fond - RÉDUITS -->
-    <div class="bg-circles">
-        <div class="circle"></div>
-        <div class="circle"></div>
-        <div class="circle"></div>
-        <div class="circle"></div>
-        <div class="circle"></div>
-        <div class="circle"></div>
-    </div>
+
     
     <div class="w-full max-w-md px-4">
         <div class="card p-6">
             <!-- Logo et en-tête -->
             <div class="text-center mb-6">
+                <p class="font-weight-bold text-gray-800" style="font-weight: 700; font-size: 0.8rem; letter-spacing: 0.5px; margin-bottom: 8px;">
+                    BIENVENIUE, WILLKOMMEN<br>WELCOME, BIENVENIDO
+                </p>
                 <div class="w-30 h-30 flex items-center justify-center mx-auto mb-4">
                     <img src="{{asset('logo.png')}}" style="width:200px;">
                 </div>
@@ -398,7 +306,7 @@
                 </div>
 
                 <!-- Submit button -->
-                <button type="submit" id="loginBtn" class="btn-primary w-full flex items-center justify-center">
+                <button type="submit" id="loginBtn" class="btn-primary w-full flex items-center justify-center" style="font-weight: 700; font-size: 1.05rem;">
                     <span id="loginBtnText">Se connecter</span>
                     <div id="loginSpinner" class="hidden ml-2">
                         <div class="spinner"></div>
@@ -408,9 +316,9 @@
 
             <!-- Lien vers inscription -->
             <div class="text-center mt-5">
-                <p class="text-gray-600 text-sm">
+                <p class="text-gray-800" style="font-weight: 700; font-size: 1rem;">
                     Pas encore de compte ? 
-                    <a href="{{ route('register') }}" class="text-blue-600 hover:text-blue-800 font-medium hover:underline">
+                    <a href="{{ route('register') }}" class="text-blue-600 hover:text-blue-800" style="font-weight: 700; text-decoration: underline;">
                         S'inscrire
                     </a>
                 </p>
