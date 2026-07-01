@@ -5,17 +5,20 @@
     <!-- MAIN CONTENT -->
     <main class="dashboard-content">
         <!-- Welcome Section -->
-        <div class="welcome-card">
-            <h2 class="welcome-title">
-                Bonjour, {{ auth()->user()->name }} 
-                @if(isset($etablissement) && $etablissement)
-                    <small class="text-muted" style="font-size: 0.6em; display: block;">{{ $etablissement->nom }}</small>
-                @endif
-            </h2>
-            <p class="welcome-text">
-                Bienvenue sur votre tableau de bord. Nous sommes le <strong id="clock-date"></strong>.
-            </p>
-            <p class="welcome-text" style="font-size: 1.8em; font-weight: 700; margin-top: -5px;" id="clock-time"></p>
+        <div class="welcome-card" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2 class="welcome-title" style="margin-bottom: 0;">
+                    Bonjour, {{ auth()->user()->name }}
+                    @if(isset($etablissement) && $etablissement)
+                        <small class="text-muted" style="font-size: 0.6em; display: block;">{{ $etablissement->nom }}</small>
+                    @endif
+                </h2>
+                <p class="welcome-text" style="margin-bottom: 0; margin-top: 8px;">Bienvenue sur votre tableau de bord.</p>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 2.5em; font-weight: 700; line-height: 1.2; color: #fff;" id="clock-time"></div>
+                <div style="font-size: 1em; opacity: 0.85; color: #fff;" id="clock-date"></div>
+            </div>
         </div>
 
         <script>
