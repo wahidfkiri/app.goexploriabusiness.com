@@ -16,7 +16,7 @@
                 <p class="welcome-text" style="margin-bottom: 0; margin-top: 8px;">Bienvenue sur votre tableau de bord.</p>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 2.5em; font-weight: 700; line-height: 1.2; color: #fff;"><i class="fas fa-clock me-2"></i><span id="clock-time"></span></div>
+                <div style="font-size: 2rem; font-weight: 700; line-height: 1.2; color: #fff;"><i class="fas fa-clock me-2"></i><span id="clock-time"></span></div>
                 <div style="font-size: 1em; opacity: 0.85; color: #fff;" id="clock-date"></div>
             </div>
         </div>
