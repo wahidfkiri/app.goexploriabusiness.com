@@ -13,8 +13,8 @@
     
     <style>
         :root {
-            --primary: #3B82F6;
-            --primary-hover: #2563EB;
+            --primary: #ef7724;
+            --primary-hover: #d6651e;
             --secondary: #10B981;
             --accent: #8B5CF6;
         }
@@ -78,7 +78,7 @@
         
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 8px 20px rgba(239, 119, 36, 0.3);
         }
         
         .btn-primary:active {
@@ -148,7 +148,7 @@
             height: 14px;
             border: 2px solid #E5E7EB;
             border-radius: 50%;
-            border-top-color: #3B82F6;
+            border-top-color: #ef7724;
             animation: spin 1s linear infinite;
         }
         
@@ -239,16 +239,16 @@
         }
         
         .step-number {
-            width: 32px;
-            height: 32px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             background: #E5E7EB;
             color: #6B7280;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 600;
-            font-size: 14px;
+            font-weight: 700;
+            font-size: 18px;
             transition: all 0.3s ease;
             z-index: 2;
         }
@@ -256,29 +256,29 @@
         .step.active .step-number {
             background: var(--primary);
             color: white;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 4px 12px rgba(239, 119, 36, 0.3);
         }
         
         .step-label {
-            margin-top: 8px;
-            font-size: 11px;
+            margin-top: 10px;
+            font-size: 13px;
             color: #6B7280;
             text-align: center;
-            font-weight: 500;
+            font-weight: 600;
         }
         
         .step.active .step-label {
             color: var(--primary);
-            font-weight: 600;
+            font-weight: 700;
         }
         
         .step-line {
-            width: 80px;
-            height: 2px;
+            width: 100px;
+            height: 3px;
             background: #E5E7EB;
             margin: 0 8px;
             position: relative;
-            top: 16px;
+            top: 20px;
         }
         
         .step-line.active {
@@ -439,25 +439,25 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-3">Type de compte</label>
                         <div class="grid grid-cols-2 gap-3">
-                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleEntreprise">
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-[#f9a05a] has-[:checked]:border-[#ef7724] has-[:checked]:bg-[#fff5eb]" id="roleEntreprise">
                                 <input type="radio" name="role" value="entreprise" class="hidden" checked onchange="updateRoleSelection(this)">
-                                <i class="fas fa-building text-lg text-blue-600 mb-1"></i>
+                                <i class="fas fa-building text-lg text-[#ef7724] mb-1"></i>
                                 <div class="text-xs font-semibold text-gray-700">ENTREPRISES</div>
                                 <div class="text-xs text-gray-500">Sociétés, agences, professionnels</div>
                             </label>
-                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleSpecialVoyage">
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-[#f9a05a] has-[:checked]:border-[#ef7724] has-[:checked]:bg-[#fff5eb]" id="roleSpecialVoyage">
                                 <input type="radio" name="role" value="special-voyage" class="hidden" onchange="updateRoleSelection(this)">
                                 <i class="fas fa-suitcase-rolling text-lg text-emerald-600 mb-1"></i>
                                 <div class="text-xs font-semibold text-gray-700">SPÉCIAUX VOYAGES</div>
                                 <div class="text-xs text-gray-500">Tours opérateurs, guides, transport</div>
                             </label>
-                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="rolePartenaire">
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-[#f9a05a] has-[:checked]:border-[#ef7724] has-[:checked]:bg-[#fff5eb]" id="rolePartenaire">
                                 <input type="radio" name="role" value="partenaire-affilie" class="hidden" onchange="updateRoleSelection(this)">
                                 <i class="fas fa-handshake text-lg text-purple-600 mb-1"></i>
                                 <div class="text-xs font-semibold text-gray-700">PARTENAIRES AFFILIÉS</div>
                                 <div class="text-xs text-gray-500">Influenceurs, blogueurs, revendeurs</div>
                             </label>
-                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50" id="roleWebVoyageur">
+                            <label class="border-2 rounded-lg p-3 cursor-pointer text-center transition-all hover:border-[#f9a05a] has-[:checked]:border-[#ef7724] has-[:checked]:bg-[#fff5eb]" id="roleWebVoyageur">
                                 <input type="radio" name="role" value="web-voyageur" class="hidden" onchange="updateRoleSelection(this)">
                                 <i class="fas fa-globe text-lg text-amber-600 mb-1"></i>
                                 <div class="text-xs font-semibold text-gray-700">WEB VOYAGEURS</div>
@@ -599,7 +599,7 @@
                             <i class="fas fa-check"></i>
                         </div>
                         <span class="text-gray-700 text-sm">
-                            J'accepte les <a href="#" class="text-blue-600 hover:underline">conditions d'utilisation</a> et la <a href="#" class="text-blue-600 hover:underline">politique de confidentialité</a>
+                            J'accepte les <a href="#" class="text-[#ef7724] hover:underline">conditions d'utilisation</a> et la <a href="#" class="text-[#ef7724] hover:underline">politique de confidentialité</a>
                         </span>
                     </div>
                     <div class="text-red-500 text-xs mt-1 hidden" id="termsError"></div>
@@ -633,7 +633,7 @@
             <div class="text-center mt-5">
                 <p class="text-gray-800" style="font-weight: 700; font-size: 1rem;">
                     Déjà un compte ? 
-                    <a href="{{ route('login') }}" class="text-blue-600 hover:text-blue-800" style="font-weight: 700; text-decoration: underline;">
+                    <a href="{{ route('login') }}" class="text-[#ef7724] hover:text-[#d6651e]" style="font-weight: 700; text-decoration: underline;">
                         Se connecter
                     </a>
                 </p>
@@ -643,7 +643,7 @@
             <div class="text-center pt-4 border-t border-gray-200">
                 <p class="text-gray-600 text-xs">
                     En vous inscrivant, vous acceptez notre
-                    <a href="#" class="text-blue-600 hover:underline font-medium">Politique de confidentialité</a>
+                    <a href="#" class="text-[#ef7724] hover:underline font-medium">Politique de confidentialité</a>
                 </p>
                 <p class="text-gray-500 text-xs mt-3">
                     © 2026 Go Exploria Business. Tous droits réservés.
@@ -661,12 +661,12 @@
         function updateRoleSelection(input) {
             document.querySelectorAll('[id^="role"]').forEach(el => {
                 if (!el.id.startsWith('role')) return;
-                el.classList.remove('border-blue-600', 'bg-blue-50');
+                el.classList.remove('border-[#ef7724]', 'bg-[#fff5eb]');
                 el.classList.add('border-gray-200');
             });
             const parent = input.closest('label');
             parent.classList.remove('border-gray-200');
-            parent.classList.add('border-blue-600', 'bg-blue-50');
+            parent.classList.add('border-[#ef7724]', 'bg-[#fff5eb]');
         }
 
         // Email availability check with debounce
@@ -1240,7 +1240,7 @@
                     
                     // Animation de succès
                     btn.classList.add('bg-green-500');
-                    btn.classList.remove('bg-gradient-to-r', 'from-blue-500', 'to-blue-600');
+                    btn.classList.remove('bg-gradient-to-r', 'from-[#ef7724]', 'to-[#d6651e]');
                     
                     // Redirection
                     setTimeout(() => {
