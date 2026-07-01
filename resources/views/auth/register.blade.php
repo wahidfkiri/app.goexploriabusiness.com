@@ -21,7 +21,7 @@
         
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: white;
+            background: url('/images/fond.png') center/cover no-repeat;
             min-height: 100vh;
             display: flex;
             align-items: center;
