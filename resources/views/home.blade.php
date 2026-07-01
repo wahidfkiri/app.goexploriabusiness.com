@@ -16,7 +16,7 @@
                 <p class="welcome-text" style="margin-bottom: 0; margin-top: 8px;">Bienvenue sur votre tableau de bord.</p>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 2.5em; font-weight: 700; line-height: 1.2; color: #fff;" id="clock-time"></div>
+                <div style="font-size: 2.5em; font-weight: 700; line-height: 1.2; color: #fff;"><i class="fas fa-clock me-2"></i><span id="clock-time"></span></div>
                 <div style="font-size: 1em; opacity: 0.85; color: #fff;" id="clock-date"></div>
             </div>
         </div>
@@ -25,9 +25,8 @@
             function updateClock() {
                 const now = new Date();
                 const dateOpts = { timeZone: 'America/Toronto', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-                const timeOpts = { timeZone: 'America/Toronto', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
                 document.getElementById('clock-date').textContent = now.toLocaleDateString('fr-CA', dateOpts);
-                document.getElementById('clock-time').textContent = now.toLocaleTimeString('fr-CA', timeOpts);
+                document.getElementById('clock-time').textContent = now.toLocaleTimeString('en-CA', { timeZone: 'America/Toronto', hour12: false });
             }
             updateClock();
             setInterval(updateClock, 1000);
