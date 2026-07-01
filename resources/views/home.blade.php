@@ -6,15 +6,29 @@
     <main class="dashboard-content">
         <!-- Welcome Section -->
         <div class="welcome-card">
-            <h2 class="welcome-title">Bonjour, {{auth()->user()->name}} 👋</h2>
+            <h2 class="welcome-title">
+                Bonjour, {{ auth()->user()->name }} 
+                @if(isset($etablissement) && $etablissement)
+                    <small class="text-muted" style="font-size: 0.6em; display: block;">{{ $etablissement->nom }}</small>
+                @endif
+            </h2>
             <p class="welcome-text">
-                Gérez votre plateforme GO EXPLORIA, créez des sites web modernes, et suivez les performances de vos clients. 
-                Vous avez {{ $totalMessagesNonLus ?? 3 }} nouveaux messages et {{ $totalTasksEnAttente ?? 12 }} tâches en attente aujourd'hui.
+                Bienvenue sur votre tableau de bord. Nous sommes le <strong id="clock-date"></strong>.
             </p>
-            <button class="btn btn-light">
-                <i class="fas fa-rocket me-2"></i>Commencer maintenant
-            </button>
+            <p class="welcome-text" style="font-size: 1.8em; font-weight: 700; margin-top: -5px;" id="clock-time"></p>
         </div>
+
+        <script>
+            function updateClock() {
+                const now = new Date();
+                const dateOpts = { timeZone: 'America/Toronto', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const timeOpts = { timeZone: 'America/Toronto', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+                document.getElementById('clock-date').textContent = now.toLocaleDateString('fr-CA', dateOpts);
+                document.getElementById('clock-time').textContent = now.toLocaleTimeString('fr-CA', timeOpts);
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+        </script>
         
         <!-- Stats Row -->
         <div class="row">

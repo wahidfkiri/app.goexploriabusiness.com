@@ -19,37 +19,59 @@ public function __construct()
 }
     public function index()
     {
-        if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('super-admin')) {
-        // Récupérer les statistiques depuis la base de données
-        $totalPays = Country::count();
-        $totalEtablissements = Etablissement::count();
-        $totalProjetsEnCours = Project::whereIn('status', ['en_cours', 'active'])->count();
-        $totalTasks = Task::count();
-        $totalUsers = User::count();
-        $totalTemplates = Template::count();
-        
-        // Récupérer les activités récentes
+        $user = auth()->user();
+        $isScoped = $user->hasRole('entreprise') || $user->hasRole('partenaire-affilie');
+        $etablissement = null;
+
+        if ($isScoped) {
+            $etablissement = $user->etablissement;
+            $etablissementId = $etablissement?->id;
+
+            $totalPays = $etablissement?->country_id ? 1 : 0;
+            $totalEtablissements = $etablissement ? 1 : 0;
+            $totalProjetsEnCours = $etablissementId
+                ? Project::where('etablissement_id', $etablissementId)->whereIn('status', ['en_cours', 'active'])->count()
+                : 0;
+            $totalTasks = $etablissementId
+                ? Task::where('etablissement_id', $etablissementId)->count()
+                : 0;
+            $totalUsers = $etablissement ? 1 : 0;
+            $totalTemplates = Template::count();
+
+            $projects = $etablissementId
+                ? Project::with(['etablissement', 'user'])
+                    ->where('etablissement_id', $etablissementId)
+                    ->orderBy('created_at', 'desc')
+                    ->take(3)
+                    ->get()
+                : collect();
+        } else {
+            $totalPays = Country::count();
+            $totalEtablissements = Etablissement::count();
+            $totalProjetsEnCours = Project::whereIn('status', ['en_cours', 'active'])->count();
+            $totalTasks = Task::count();
+            $totalUsers = User::count();
+            $totalTemplates = Template::count();
+
+            $projects = Project::with(['etablissement', 'user'])
+                ->orderBy('created_at', 'desc')
+                ->take(3)
+                ->get();
+        }
+
         $recentActivities = $this->getRecentActivities();
-        
-        // Récupérer les projets avec leur progression
-        $projects = Project::with(['etablissement', 'user'])
-            ->orderBy('created_at', 'desc')
-            ->take(3)
-            ->get();
-        
+
         return view('home', compact(
             'totalPays',
-            'totalEtablissements', 
+            'totalEtablissements',
             'totalProjetsEnCours',
             'totalTasks',
             'totalUsers',
             'totalTemplates',
             'recentActivities',
-            'projects'
+            'projects',
+            'etablissement'
         ));
-        } else {
-            return redirect()->route('projects.index')->with('error', 'Vous n\'avez pas accès au tableau de bord.');
-        }
     }
     
     private function getRecentActivities()
