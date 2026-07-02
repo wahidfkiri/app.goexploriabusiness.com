@@ -87,15 +87,13 @@ public function __construct()
         $etablissement = $user->etablissement;
 
         $settings = BillingSetting::first();
-        $services = BillingRequestService::with('tax')->active()->orderBy('sort_order')->orderBy('title')->get();
         $discounts = BillingDiscount::active()->get();
-        $plans = Plan::active()->ordered()->get();
+        $plans = BillingRequestService::with('tax')->active()->orderBy('sort_order')->orderBy('title')->get();
         $requests = BillingRequest::where('email', $user->email)->orWhere('company', $etablissement?->name)->latest()->take(5)->get();
         $requestItems = BillingRequestItem::whereIn('billing_request_id', $requests->pluck('id'))->with('service')->get();
 
         return view('payment', compact(
             'settings',
-            'services',
             'discounts',
             'plans',
             'requests',
@@ -106,73 +104,56 @@ public function __construct()
 
     public function createPayPalOrder(Request $request)
     {
-        $request->validate([
-            'amount' => 'required|numeric|min:1',
-            'plan_name' => 'required|string',
-        ]);
+        try {
+            $request->validate([
+                'amount' => 'required|numeric|min:1',
+                'plan_name' => 'required|string',
+            ]);
 
-        $provider = new PayPalClient;
-        $mode = config('services.paypal.mode', 'sandbox');
-        $clientId = $mode === 'live'
-            ? config('services.paypal.client_id') ?? env('PAYPAL_LIVE_CLIENT_ID')
-            : config('services.paypal.client_id') ?? env('PAYPAL_SANDBOX_CLIENT_ID');
-        $secret = $mode === 'live'
-            ? config('services.paypal.client_secret') ?? env('PAYPAL_LIVE_CLIENT_SECRET')
-            : config('services.paypal.client_secret') ?? env('PAYPAL_SANDBOX_CLIENT_SECRET');
+            $provider = new PayPalClient;
+            $provider->setApiCredentials(config('paypal'));
+            $provider->setCurrency('CAD');
+            $provider->getAccessToken();
 
-        $provider->setApiCredentials([
-            'mode' => $mode,
-            'sandbox' => [
-                'client_id' => env('PAYPAL_SANDBOX_CLIENT_ID', $clientId),
-                'client_secret' => env('PAYPAL_SANDBOX_CLIENT_SECRET', $secret),
-            ],
-            'live' => [
-                'client_id' => env('PAYPAL_LIVE_CLIENT_ID', $clientId),
-                'client_secret' => env('PAYPAL_LIVE_CLIENT_SECRET', $secret),
-            ],
-            'payment_action' => 'capture',
-            'currency' => 'CAD',
-            'locale' => 'fr_CA',
-            'validate_ssl' => true,
-        ]);
-
-        $provider->getAccessToken();
-
-        $order = $provider->createOrder([
-            'intent' => 'CAPTURE',
-            'purchase_units' => [
-                [
-                    'reference_id' => uniqid('plan_', true),
-                    'description' => 'Paiement plan: ' . $request->plan_name,
-                    'amount' => [
-                        'currency_code' => 'CAD',
-                        'value' => number_format((float) $request->amount, 2, '.', ''),
+            $order = $provider->createOrder([
+                'intent' => 'CAPTURE',
+                'purchase_units' => [
+                    [
+                        'reference_id' => uniqid('plan_', true),
+                        'description' => 'Paiement plan: ' . $request->plan_name,
+                        'amount' => [
+                            'currency_code' => 'CAD',
+                            'value' => number_format((float) $request->amount, 2, '.', ''),
+                        ],
                     ],
                 ],
-            ],
-            'application_context' => [
-                'cancel_url' => route('billing.payment'),
-                'return_url' => route('billing.payment.paypal.capture'),
-                'brand_name' => 'Go Exploria Business',
-                'locale' => 'fr-FR',
-                'landing_page' => 'BILLING',
-                'user_action' => 'PAY_NOW',
-            ],
-        ]);
-
-        if (isset($order['id']) && $order['status'] === 'CREATED') {
-            $approvalUrl = collect($order['links'])->firstWhere('rel', 'approve')['href'] ?? null;
-            return response()->json([
-                'success' => true,
-                'order_id' => $order['id'],
-                'approval_url' => $approvalUrl,
+                'application_context' => [
+                    'cancel_url' => route('billing.payment'),
+                    'return_url' => route('billing.payment.paypal.capture'),
+                    'brand_name' => 'Go Exploria Business',
+                    'locale' => 'fr-FR',
+                    'landing_page' => 'BILLING',
+                    'user_action' => 'PAY_NOW',
+                ],
             ]);
-        }
 
-        return response()->json([
-            'success' => false,
-            'message' => $order['message'] ?? 'Erreur lors de la création du paiement PayPal.',
-        ], 500);
+            if (isset($order['id']) && $order['status'] === 'CREATED') {
+                return response()->json([
+                    'success' => true,
+                    'order_id' => $order['id'],
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $order['message'] ?? 'Erreur lors de la création du paiement PayPal.',
+            ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur PayPal : ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function capturePayPal(Request $request)
@@ -186,45 +167,30 @@ public function __construct()
             return redirect()->route('billing.payment')->with('error', 'ID de commande manquant.');
         }
 
-        $provider = new PayPalClient;
-        $mode = config('services.paypal.mode', 'sandbox');
-        $clientId = $mode === 'live'
-            ? config('services.paypal.client_id') ?? env('PAYPAL_LIVE_CLIENT_ID')
-            : config('services.paypal.client_id') ?? env('PAYPAL_SANDBOX_CLIENT_ID');
-        $secret = $mode === 'live'
-            ? config('services.paypal.client_secret') ?? env('PAYPAL_LIVE_CLIENT_SECRET')
-            : config('services.paypal.client_secret') ?? env('PAYPAL_SANDBOX_CLIENT_SECRET');
+        try {
+            $provider = new PayPalClient;
+            $provider->setApiCredentials(config('paypal'));
+            $provider->setCurrency('CAD');
+            $provider->getAccessToken();
+            $result = $provider->capturePaymentOrder($orderId);
 
-        $provider->setApiCredentials([
-            'mode' => $mode,
-            'sandbox' => [
-                'client_id' => env('PAYPAL_SANDBOX_CLIENT_ID', $clientId),
-                'client_secret' => env('PAYPAL_SANDBOX_CLIENT_SECRET', $secret),
-            ],
-            'live' => [
-                'client_id' => env('PAYPAL_LIVE_CLIENT_ID', $clientId),
-                'client_secret' => env('PAYPAL_LIVE_CLIENT_SECRET', $secret),
-            ],
-            'payment_action' => 'capture',
-            'currency' => 'CAD',
-            'locale' => 'fr_CA',
-            'validate_ssl' => true,
-        ]);
-
-        $provider->getAccessToken();
-        $result = $provider->capturePaymentOrder($orderId);
-
-        if (isset($result['status']) && $result['status'] === 'COMPLETED') {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => true, 'message' => 'Paiement réussi !']);
+            if (isset($result['status']) && $result['status'] === 'COMPLETED') {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => true, 'message' => 'Paiement réussi !']);
+                }
+                return redirect()->route('billing.payment')->with('success', 'Paiement réussi ! Votre plan est activé.');
             }
-            return redirect()->route('billing.payment')->with('success', 'Paiement réussi ! Votre plan est activé.');
-        }
 
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['success' => false, 'message' => 'Le paiement a échoué. Veuillez réessayer.'], 500);
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Le paiement a échoué. Veuillez réessayer.'], 500);
+            }
+            return redirect()->route('billing.payment')->with('error', 'Le paiement a échoué. Veuillez réessayer.');
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Erreur de paiement : ' . $e->getMessage()], 500);
+            }
+            return redirect()->route('billing.payment')->with('error', 'Erreur de paiement : ' . $e->getMessage());
         }
-        return redirect()->route('billing.payment')->with('error', 'Le paiement a échoué. Veuillez réessayer.');
     }
 
     private function getRecentActivities()

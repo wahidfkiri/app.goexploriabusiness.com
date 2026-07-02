@@ -17,17 +17,17 @@
     @endif
 
     @php
-        $paypalMode = config('services.paypal.mode', 'sandbox');
+        $paypalMode = config('paypal.mode', 'sandbox');
         $paypalClientId = $paypalMode === 'live'
-            ? (config('services.paypal.client_id') ?: env('PAYPAL_LIVE_CLIENT_ID'))
-            : (config('services.paypal.client_id') ?: env('PAYPAL_SANDBOX_CLIENT_ID'));
+            ? config('paypal.live.client_id')
+            : config('paypal.sandbox.client_id');
     @endphp
 
     <div class="row mt-3">
-        @foreach($plans as $plan)
+        @forelse($plans as $plan)
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="stats-card plan-card" data-id="{{ $plan->id }}" data-name="{{ $plan->name }}" data-price="{{ $plan->price }}" style="cursor: pointer; border: 2px solid {{ $plan->is_popular ? '#ef7724' : '#e5e7eb' }}; position: relative;">
-                @if($plan->is_popular)
+            <div class="stats-card plan-card" data-id="{{ $plan->id }}" data-name="{{ $plan->title }}" data-price="{{ $plan->unit_price }}" style="cursor: pointer; border: 2px solid {{ $plan->is_featured ? '#ef7724' : '#e5e7eb' }}; position: relative;">
+                @if($plan->is_featured)
                 <span style="position: absolute; top: 8px; right: 8px; background: #ef7724; color: #fff; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;">POPULAIRE</span>
                 @endif
                 <div class="stats-header">
@@ -35,19 +35,24 @@
                         <i class="fas fa-crown"></i>
                     </div>
                 </div>
-                <div class="stats-value" style="font-size: 1.2rem;">{{ $plan->name }}</div>
+                <div class="stats-value" style="font-size: 1.2rem;">{{ $plan->title }}</div>
                 <div class="stats-label" style="font-size: 1.5rem; font-weight: 800; color: #1e293b;">
-                    {{ number_format($plan->price, 2) }} $ <small style="font-size: 0.6rem; font-weight: 400; color: #64748b;">/{{ $plan->billing_cycle ?? 'mois' }}</small>
+                    {{ number_format($plan->unit_price, 2) }} $ <small style="font-size: 0.6rem; font-weight: 400; color: #64748b;">/{{ $plan->billing_unit ?? 'mois' }}</small>
                 </div>
                 <p style="font-size: 0.8rem; color: #64748b; margin-top: 8px;">
-                    {{ Str::limit(is_array($plan->features) ? implode(', ', $plan->features) : ($plan->features ?? ''), 80) }}
+                    {{ Str::limit($plan->description ?? '', 80) }}
                 </p>
+                @if($plan->tax)
+                <span style="font-size: 11px; color: #64748b;">Taxe: {{ $plan->tax->rate }}%</span>
+                @endif
                 <div class="plan-check" style="position: absolute; top: 8px; left: 8px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #d1d5db; display: none; align-items: center; justify-content: center; background: #fff;">
                     <i class="fas fa-check" style="font-size: 10px; color: #fff;"></i>
                 </div>
             </div>
         </div>
-        @endforeach
+        @empty
+        <div class="col-12"><p class="text-muted">Aucun plan disponible.</p></div>
+        @endforelse
     </div>
 
     <!-- Payment Section -->
@@ -82,36 +87,6 @@
                         <div id="payment-error" style="display: none; color: #dc2626; font-size: 0.85rem; margin-top: 8px; padding: 8px; background: #fee2e2; border-radius: 6px;"></div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Services -->
-    <div class="main-card-modern mt-4">
-        <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
-            <h5 style="margin: 0; font-weight: 700;"><i class="fas fa-cogs me-2"></i>Services disponibles</h5>
-        </div>
-        <div style="padding: 20px;">
-            <div class="row">
-                @forelse($services as $service)
-                <div class="col-xl-4 col-md-6 mb-3">
-                    <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; height: 100%;">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                            <div style="width: 38px; height: 38px; border-radius: 8px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; color: #ef7724;">
-                                <i class="fas fa-tag"></i>
-                            </div>
-                            <h6 style="margin: 0; font-weight: 700; font-size: 0.9rem;">{{ $service->title }}</h6>
-                        </div>
-                        <p style="font-size: 0.8rem; color: #64748b; margin: 0 0 8px;">{{ $service->description }}</p>
-                        <div style="font-weight: 700; color: #1e293b;">{{ number_format($service->unit_price, 2) }} $</div>
-                        @if($service->tax)
-                            <span style="font-size: 11px; color: #64748b;">Taxe: {{ $service->tax->rate }}%</span>
-                        @endif
-                    </div>
-                </div>
-                @empty
-                <div class="col-12"><p class="text-muted">Aucun service disponible.</p></div>
-                @endforelse
             </div>
         </div>
     </div>
@@ -198,7 +173,7 @@
     document.querySelectorAll('.plan-card').forEach(card => {
         card.addEventListener('click', function() {
             document.querySelectorAll('.plan-card').forEach(c => {
-                c.style.borderColor = c.dataset.popular === '1' ? '#ef7724' : '#e5e7eb';
+                c.style.borderColor = '#e5e7eb';
                 const check = c.querySelector('.plan-check');
                 if (check) check.style.display = 'none';
             });
