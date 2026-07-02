@@ -4,13 +4,7 @@
             <button class="sidebar-toggle-mobile" id="sidebarToggle" type="button" aria-label="Ouvrir ou fermer le menu" aria-controls="dashboardSidebar" aria-expanded="true">
                 <i class="fas fa-bars"></i>
             </button>
-            <a href="https://goexploriabusiness.com" 
-               target="_blank" 
-               rel="noopener noreferrer" 
-               class="website-link">
-                <i class="fas fa-external-link-alt"></i>
-                <span>Voir site web</span>
-            </a>
+
         </div>
         
         <div class="header-right">

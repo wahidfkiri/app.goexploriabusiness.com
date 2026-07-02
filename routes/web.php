@@ -93,6 +93,11 @@ Route::middleware(['auth','web','user.active'])->group(function () {
 // Route pour le dashboard (à protéger)
 Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
 
+    // Page de paiement
+    Route::get('/billing/payment', [HomeController::class, 'payment'])->name('billing.payment');
+    Route::post('/billing/payment/paypal/create', [HomeController::class, 'createPayPalOrder'])->name('billing.payment.paypal.create');
+    Route::post('/billing/payment/paypal/capture', [HomeController::class, 'capturePayPal'])->name('billing.payment.paypal.capture');
+
     
     // Profil utilisateur
     Route::prefix('profile')->name('profile.')->group(function () {
