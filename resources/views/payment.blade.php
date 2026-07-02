@@ -144,23 +144,6 @@
     </div>
     @endif
 
-    <!-- Settings -->
-    @if($settings)
-    <div class="main-card-modern mt-3">
-        <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
-            <h5 style="margin: 0; font-weight: 700;"><i class="fas fa-info-circle me-2"></i>Configuration de facturation</h5>
-        </div>
-        <div style="padding: 16px 20px; display: flex; gap: 24px; flex-wrap: wrap; font-size: 0.85rem;">
-            <div><strong>Devise :</strong> {{ $settings->currency ?? 'CAD' }}</div>
-            <div><strong>Locale :</strong> {{ $settings->locale ?? 'fr_CA' }}</div>
-            <div><strong>Taxes :</strong> {{ $settings->taxes_enabled ? 'Activées' : 'Désactivées' }}</div>
-            <div><strong>Paiement en ligne :</strong> {{ $settings->enable_online_payment ? 'Activé' : 'Désactivé' }}</div>
-            @if($settings->default_discount_id)
-            <div><strong>Réduction par défaut :</strong> {{ $discounts->firstWhere('id', $settings->default_discount_id)?->name ?? 'N/A' }}</div>
-            @endif
-        </div>
-    </div>
-    @endif
 </main>
 
 @if($paypalClientId)

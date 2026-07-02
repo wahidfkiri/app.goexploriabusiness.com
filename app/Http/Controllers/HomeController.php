@@ -148,7 +148,7 @@ public function __construct()
                 'success' => false,
                 'message' => $order['message'] ?? 'Erreur lors de la création du paiement PayPal.',
             ], 500);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur PayPal : ' . $e->getMessage(),
@@ -185,7 +185,7 @@ public function __construct()
                 return response()->json(['success' => false, 'message' => 'Le paiement a échoué. Veuillez réessayer.'], 500);
             }
             return redirect()->route('billing.payment')->with('error', 'Le paiement a échoué. Veuillez réessayer.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Erreur de paiement : ' . $e->getMessage()], 500);
             }
