@@ -133,9 +133,9 @@ class AuthController extends Controller
                     'zip_code' => $request->zip_code,
                     'phone' => $request->phone,
                     'email_contact' => $request->email,
-                    'is_active' => true,
+                    'is_active' => false,
                 ];
-
+ 
                 Etablissement::create($etablissementData);
             }
 
