@@ -52,83 +52,61 @@
                         <div class="tabs-search-modern">
                             <div class="search-input-wrapper">
                                 <i class="fas fa-search search-icon"></i>
-                                <input type="text" class="search-input" id="tabSearch" placeholder="Rechercher un onglet..." oninput="filterTabs(this.value)">
+                                <input type="text" class="search-input" id="tabSearchInput" placeholder="Rechercher un onglet..." oninput="filterTabs(this.value)">
                             </div>
                         </div>
 
-                        <div class="vertical-tabs-modern" id="verticalTabList">
-                            <button class="nav-link-modern active" data-bs-toggle="pill" data-bs-target="#v-pills-dashboard" type="button" role="tab">
-                                <i class="fas fa-tachometer-alt"></i>
-                                <span>Tableau de bord</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-pages" type="button" role="tab">
-                                <i class="fas fa-file-alt"></i>
-                                <span>Pages</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-blogs" type="button" role="tab">
-                                <i class="fas fa-blog"></i>
-                                <span>Blog</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-header-footer" type="button" role="tab">
-                                <i class="fas fa-window-maximize"></i>
-                                <span>Header &amp; Footer</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-config" type="button" role="tab">
-                                <i class="fas fa-cog"></i>
-                                <span>Configuration</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-social" type="button" role="tab">
-                                <i class="fas fa-share-alt"></i>
-                                <span>Réseaux sociaux</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-seo" type="button" role="tab">
-                                <i class="fas fa-chart-line"></i>
-                                <span>SEO</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-slider" type="button" role="tab">
-                                <i class="fas fa-images"></i>
-                                <span>Sliders</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-slideshow" type="button" role="tab">
-                                <i class="fas fa-play-circle"></i>
-                                <span>Slideshow</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-map-videos" type="button" role="tab">
-                                <i class="fas fa-video"></i>
-                                <span>Vidéos maps</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-ecommerce" type="button" role="tab">
-                                <i class="fas fa-shopping-cart"></i>
-                                <span>E-commerce</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-themes" type="button" role="tab">
-                                <i class="fas fa-paint-brush"></i>
-                                <span>Thèmes</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-media" type="button" role="tab">
-                                <i class="fas fa-image"></i>
-                                <span>Médiathèque</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-newsletter" type="button" role="tab">
-                                <i class="fas fa-envelope-open-text"></i>
-                                <span>Newsletter</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-subscribers" type="button" role="tab">
-                                <i class="fas fa-users"></i>
-                                <span>Abonnés</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-contact-messages" type="button" role="tab">
-                                <i class="fas fa-inbox"></i>
-                                <span>Messages contact</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-comments" type="button" role="tab">
-                                <i class="fas fa-comments"></i>
-                                <span>Commentaires</span>
-                            </button>
-                            <button class="nav-link-modern" data-bs-toggle="pill" data-bs-target="#v-pills-danger" type="button" role="tab">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <span>Zone de danger</span>
-                            </button>
+                        <div class="nav flex-column vertical-tabs-modern" id="verticalTabList">
+                            @php
+                                $cmsDashboardSlug = $stats['etablissement']->slug ?: \Illuminate\Support\Str::slug((string) ($stats['etablissement']->name ?? ''));
+                                $activeSection = request()->get('section', 'dashboard');
+                                $cmsTabs = [
+                                    ['section' => 'dashboard',         'pill' => 'v-pills-dashboard',       'icon' => 'fa-tachometer-alt',  'title' => 'Tableau de bord',    'description' => "Vue d'ensemble"],
+                                    ['section' => 'pages',             'pill' => 'v-pills-pages',           'icon' => 'fa-file-alt',        'title' => 'Pages',              'description' => 'Gestion des pages'],
+                                    ['section' => 'blogs',             'pill' => 'v-pills-blogs',           'icon' => 'fa-blog',            'title' => 'Blog',               'description' => 'Articles et SEO'],
+                                    ['section' => 'header-footer',     'pill' => 'v-pills-header-footer',   'icon' => 'fa-window-maximize', 'title' => 'Header & Footer',    'description' => 'Zones globales'],
+                                    ['section' => 'config',            'pill' => 'v-pills-config',          'icon' => 'fa-cog',             'title' => 'Configuration',      'description' => 'Paramètres généraux'],
+                                    ['section' => 'social',            'pill' => 'v-pills-social',          'icon' => 'fa-share-alt',       'title' => 'Réseaux sociaux',    'description' => 'Liens et partages'],
+                                    ['section' => 'seo',               'pill' => 'v-pills-seo',             'icon' => 'fa-chart-line',      'title' => 'SEO',                'description' => 'Optimisation moteurs'],
+                                    ['section' => 'slider',            'pill' => 'v-pills-slider',          'icon' => 'fa-images',          'title' => 'Sliders',            'description' => 'Gestion des slides'],
+                                    ['section' => 'slideshow',         'pill' => 'v-pills-slideshow',       'icon' => 'fa-play-circle',     'title' => 'Slideshow',          'description' => 'Vidéos de présentation'],
+                                    ['section' => 'map-videos',        'pill' => 'v-pills-map-videos',      'icon' => 'fa-video',           'title' => 'Vidéos maps',        'description' => 'Points vidéo géolocalisés'],
+                                    ['section' => 'ecommerce',         'pill' => 'v-pills-ecommerce',       'icon' => 'fa-shopping-cart',   'title' => 'E-commerce',         'description' => 'Produits et commandes'],
+                                    ['section' => 'themes',            'pill' => 'v-pills-themes',          'icon' => 'fa-paint-brush',     'title' => 'Thèmes',             'description' => 'Templates du site'],
+                                    ['section' => 'media',             'pill' => 'v-pills-media',           'icon' => 'fa-image',           'title' => 'Médiathèque',        'description' => 'Images et fichiers'],
+                                    ['section' => 'newsletter',        'pill' => 'v-pills-newsletter',      'icon' => 'fa-envelope-open-text', 'title' => 'Newsletter',      'description' => 'Campagnes emails'],
+                                    ['section' => 'subscribers',       'pill' => 'v-pills-subscribers',     'icon' => 'fa-users',           'title' => 'Abonnés',            'description' => 'Liste des contacts'],
+                                    ['section' => 'contact-messages',  'pill' => 'v-pills-contact-messages','icon' => 'fa-inbox',           'title' => 'Messages contact',   'description' => 'Demandes visiteurs'],
+                                    ['section' => 'comments',          'pill' => 'v-pills-comments',       'icon' => 'fa-comments',         'title' => 'Commentaires',       'description' => 'Modération'],
+                                ];
+                            @endphp
+                            @foreach($cmsTabs as $tab)
+                                @php $isActive = $activeSection === $tab['section']; @endphp
+                                <a href="{{ route('cms.admin.dashboard', ['etablissementId' => $stats['etablissement']->id, 'slug' => $cmsDashboardSlug, 'section' => $tab['section']]) }}"
+                                   class="nav-link-modern {{ $isActive ? 'active' : '' }}"
+                                   data-section="{{ $tab['pill'] }}"
+                                   onclick="navigateTo('{{ $tab['pill'] }}', '{{ $tab['section'] }}'); return false;">
+                                    <div class="tab-icon-wrapper">
+                                        <i class="fas {{ $tab['icon'] }}"></i>
+                                    </div>
+                                    <div class="tab-content-wrapper-modern">
+                                        <span class="tab-title-modern">{{ $tab['title'] }}</span>
+                                        <span class="tab-description">{{ $tab['description'] }}</span>
+                                    </div>
+                                </a>
+                            @endforeach
+                            <a href="{{ route('cms.admin.dashboard', ['etablissementId' => $stats['etablissement']->id, 'slug' => $cmsDashboardSlug, 'section' => 'danger']) }}"
+                               class="nav-link-modern danger {{ $activeSection == 'danger' ? 'active' : '' }}"
+                               data-section="v-pills-danger"
+                               onclick="navigateTo('v-pills-danger', 'danger'); return false;">
+                                <div class="tab-icon-wrapper">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="tab-content-wrapper-modern">
+                                    <span class="tab-title-modern">Zone de danger</span>
+                                    <span class="tab-description">Actions sensibles</span>
+                                </div>
+                            </a>
                         </div>
                     </div>
                 </div>
