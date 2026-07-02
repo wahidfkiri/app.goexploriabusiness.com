@@ -60,6 +60,7 @@
 </head>
 <body>
     <div class="header">
+        <img src="{{asset('logo.png')}}" alt="{{ $data['site_name'] }} Logo" style="max-width: 150px;">
         <h1>Bienvenue sur {{ $data['site_name'] }} !</h1>
     </div>
     
@@ -68,28 +69,15 @@
         
         <p>Votre établissement <strong>{{ $data['etablissement_name'] }}</strong> a été créé avec succès sur notre plateforme.</p>
         
-        <div class="info-box">
-            <p><strong>Important :</strong> Pour des raisons de sécurité, nous vous recommandons de changer votre mot de passe dès votre première connexion.</p>
-        </div>
-        
-        <div class="credentials">
-            <h3>Vos identifiants de connexion :</h3>
-            <p><strong>Email :</strong> {{ $data['email'] }}</p>
-            @if(isset($data['password']))
-            <p><strong>Mot de passe :</strong> {{ $data['password'] }}</p>
-            @endif
-        </div>
-        
+               
         <p>Vous pouvez vous connecter dès maintenant en cliquant sur le bouton ci-dessous :</p>
         
         <a href="{{ $data['login_url'] }}" class="button">Se connecter maintenant</a>
         
-        <p>Une fois connecté, vous pourrez :</p>
+        <p>Une fois connecté, vous pourrez Gérer votre Espace Entreprise:</p>
         <ul>
-            <li>Accéder à votre tableau de bord</li>
-            <li>Modifier les informations de votre établissement</li>
-            <li>Gérer vos activités</li>
-            <li>Consulter vos statistiques</li>
+            <li>Modifier, Consulter vos statistiques.</li>
+            <li>Activier votre plan d'affichage.</li>
         </ul>
         
         <p>Si vous avez des questions ou besoin d'assistance, n'hésitez pas à nous contacter à :</p>
