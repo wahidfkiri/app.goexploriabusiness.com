@@ -12,12 +12,21 @@
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
+    @if(session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
 
-    <!-- Plans -->
+    @php
+        $paypalMode = config('services.paypal.mode', 'sandbox');
+        $paypalClientId = $paypalMode === 'live'
+            ? (config('services.paypal.client_id') ?: env('PAYPAL_LIVE_CLIENT_ID'))
+            : (config('services.paypal.client_id') ?: env('PAYPAL_SANDBOX_CLIENT_ID'));
+    @endphp
+
     <div class="row mt-3">
         @foreach($plans as $plan)
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="stats-card" style="cursor: pointer; border: 2px solid {{ $plan->is_popular ? '#ef7724' : '#e5e7eb' }};" onclick="selectPlan({{ $plan->id }}, '{{ $plan->name }}', {{ $plan->price }})">
+            <div class="stats-card plan-card" data-id="{{ $plan->id }}" data-name="{{ $plan->name }}" data-price="{{ $plan->price }}" style="cursor: pointer; border: 2px solid {{ $plan->is_popular ? '#ef7724' : '#e5e7eb' }}; position: relative;">
                 @if($plan->is_popular)
                 <span style="position: absolute; top: 8px; right: 8px; background: #ef7724; color: #fff; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;">POPULAIRE</span>
                 @endif
@@ -30,10 +39,51 @@
                 <div class="stats-label" style="font-size: 1.5rem; font-weight: 800; color: #1e293b;">
                     {{ number_format($plan->price, 2) }} $ <small style="font-size: 0.6rem; font-weight: 400; color: #64748b;">/{{ $plan->billing_cycle ?? 'mois' }}</small>
                 </div>
-                <p style="font-size: 0.8rem; color: #64748b; margin-top: 8px;">{{ Str::limit($plan->features ? (is_array($plan->features) ? implode(', ', $plan->features) : $plan->features) : '', 80) }}</p>
+                <p style="font-size: 0.8rem; color: #64748b; margin-top: 8px;">
+                    {{ Str::limit(is_array($plan->features) ? implode(', ', $plan->features) : ($plan->features ?? ''), 80) }}
+                </p>
+                <div class="plan-check" style="position: absolute; top: 8px; left: 8px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #d1d5db; display: none; align-items: center; justify-content: center; background: #fff;">
+                    <i class="fas fa-check" style="font-size: 10px; color: #fff;"></i>
+                </div>
             </div>
         </div>
         @endforeach
+    </div>
+
+    <!-- Payment Section -->
+    <div class="main-card-modern mt-4" id="paymentSection" style="display: none;">
+        <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
+            <h5 style="margin: 0; font-weight: 700;"><i class="fas fa-lock me-2"></i>Paiement sécurisé</h5>
+        </div>
+        <div style="padding: 24px 20px;">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 style="font-weight: 700; color: #1e293b;">Résumé de votre commande</h6>
+                    <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-top: 8px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                            <span id="selectedPlanName" style="font-weight: 600;">-</span>
+                            <span id="selectedPlanPrice" style="font-weight: 700;">-</span>
+                        </div>
+                        <hr style="margin: 12px 0; border-color: #e5e7eb;">
+                        <div style="display: flex; justify-content: space-between; font-size: 1.1rem;">
+                            <strong>Total</strong>
+                            <strong id="selectedPlanTotal" style="color: #ef7724;">-</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6 style="font-weight: 700; color: #1e293b;">Payer avec</h6>
+                    <div style="margin-top: 8px;">
+                        <div id="paypal-button-container"></div>
+                        <div id="payment-loader" style="display: none; text-align: center; padding: 20px;">
+                            <div class="spinner-border text-warning" role="status"></div>
+                            <p class="mt-2 text-muted">Traitement du paiement en cours...</p>
+                        </div>
+                        <div id="payment-error" style="display: none; color: #dc2626; font-size: 0.85rem; margin-top: 8px; padding: 8px; background: #fee2e2; border-radius: 6px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Services -->
@@ -138,9 +188,111 @@
     @endif
 </main>
 
+@if($paypalClientId)
+<script src="https://www.paypal.com/sdk/js?client-id={{ $paypalClientId }}&currency=CAD&locale=fr_FR" data-sdk-integration-source="button-factory"></script>
+@endif
+
 <script>
-function selectPlan(id, name, price) {
-    alert('Plan sélectionné : ' + name + ' (' + price + ' $)');
-}
+    let selectedPlan = null;
+
+    document.querySelectorAll('.plan-card').forEach(card => {
+        card.addEventListener('click', function() {
+            document.querySelectorAll('.plan-card').forEach(c => {
+                c.style.borderColor = c.dataset.popular === '1' ? '#ef7724' : '#e5e7eb';
+                const check = c.querySelector('.plan-check');
+                if (check) check.style.display = 'none';
+            });
+            this.style.borderColor = '#ef7724';
+            const check = this.querySelector('.plan-check');
+            if (check) check.style.display = 'flex';
+
+            selectedPlan = {
+                id: this.dataset.id,
+                name: this.dataset.name,
+                price: parseFloat(this.dataset.price)
+            };
+
+            document.getElementById('selectedPlanName').textContent = selectedPlan.name;
+            document.getElementById('selectedPlanPrice').textContent = selectedPlan.price.toFixed(2) + ' $';
+            document.getElementById('selectedPlanTotal').textContent = selectedPlan.price.toFixed(2) + ' $';
+            document.getElementById('paymentSection').style.display = 'block';
+            document.getElementById('payment-error').style.display = 'none';
+        });
+    });
+
+    @if($paypalClientId)
+    if (typeof paypal !== 'undefined') {
+        paypal.Buttons({
+            createOrder: function() {
+                if (!selectedPlan) {
+                    document.getElementById('payment-error').textContent = 'Veuillez d\'abord sélectionner un plan.';
+                    document.getElementById('payment-error').style.display = 'block';
+                    return;
+                }
+                document.getElementById('payment-loader').style.display = 'block';
+                document.getElementById('payment-error').style.display = 'none';
+
+                return fetch('{{ route("billing.payment.paypal.create") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        amount: selectedPlan.price,
+                        plan_name: selectedPlan.name
+                    })
+                }).then(function(res) {
+                    return res.json();
+                }).then(function(data) {
+                    document.getElementById('payment-loader').style.display = 'none';
+                    if (data.success) {
+                        return data.order_id;
+                    }
+                    document.getElementById('payment-error').textContent = data.message || 'Erreur PayPal.';
+                    document.getElementById('payment-error').style.display = 'block';
+                    throw new Error(data.message);
+                });
+            },
+            onApprove: function(data) {
+                document.getElementById('payment-loader').style.display = 'block';
+                document.getElementById('payment-error').style.display = 'none';
+                return fetch('{{ route("billing.payment.paypal.capture") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ order_id: data.orderID })
+                }).then(function(res) {
+                    return res.json();
+                }).then(function(result) {
+                    document.getElementById('payment-loader').style.display = 'none';
+                    if (result.success) {
+                        window.location.href = '{{ route("billing.payment") }}?success=1';
+                    } else {
+                        document.getElementById('payment-error').textContent = result.message || 'Erreur lors de la capture du paiement.';
+                        document.getElementById('payment-error').style.display = 'block';
+                    }
+                }).catch(function(err) {
+                    document.getElementById('payment-loader').style.display = 'none';
+                    document.getElementById('payment-error').textContent = 'Erreur lors de la capture du paiement.';
+                    document.getElementById('payment-error').style.display = 'block';
+                    console.error(err);
+                });
+            },
+            onCancel: function() {
+                document.getElementById('payment-error').textContent = 'Paiement annulé. Vous pouvez réessayer.';
+                document.getElementById('payment-error').style.display = 'block';
+            },
+            onError: function(err) {
+                document.getElementById('payment-loader').style.display = 'none';
+                document.getElementById('payment-error').textContent = 'Erreur de paiement. Veuillez réessayer.';
+                document.getElementById('payment-error').style.display = 'block';
+                console.error('PayPal Error:', err);
+            }
+        }).render('#paypal-button-container');
+    }
+    @endif
 </script>
 @endsection

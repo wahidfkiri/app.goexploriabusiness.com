@@ -132,7 +132,6 @@ public function __construct()
             ],
             'payment_action' => 'capture',
             'currency' => 'CAD',
-            'notify_url' => route('payments.webhook.paypal'),
             'locale' => 'fr_CA',
             'validate_ssl' => true,
         ]);
@@ -178,10 +177,13 @@ public function __construct()
 
     public function capturePayPal(Request $request)
     {
-        $token = $request->token;
+        $orderId = $request->order_id ?? $request->token;
 
-        if (!$token) {
-            return redirect()->route('billing.payment')->with('error', 'Token de paiement manquant.');
+        if (!$orderId) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'ID de commande manquant.'], 400);
+            }
+            return redirect()->route('billing.payment')->with('error', 'ID de commande manquant.');
         }
 
         $provider = new PayPalClient;
@@ -205,18 +207,23 @@ public function __construct()
             ],
             'payment_action' => 'capture',
             'currency' => 'CAD',
-            'notify_url' => route('payments.webhook.paypal'),
             'locale' => 'fr_CA',
             'validate_ssl' => true,
         ]);
 
         $provider->getAccessToken();
-        $result = $provider->capturePaymentOrder($token);
+        $result = $provider->capturePaymentOrder($orderId);
 
         if (isset($result['status']) && $result['status'] === 'COMPLETED') {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Paiement réussi !']);
+            }
             return redirect()->route('billing.payment')->with('success', 'Paiement réussi ! Votre plan est activé.');
         }
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => false, 'message' => 'Le paiement a échoué. Veuillez réessayer.'], 500);
+        }
         return redirect()->route('billing.payment')->with('error', 'Le paiement a échoué. Veuillez réessayer.');
     }
 
