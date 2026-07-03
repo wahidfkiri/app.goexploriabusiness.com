@@ -55,7 +55,9 @@ Route::post('/ajax/register', [AuthController::class, 'ajaxRegister'])->name('aj
 Route::get('/ajax/check-email', [AuthController::class, 'checkEmail'])->name('ajax.check-email');
 Route::get('/ajax-register', [AjaxAuthController::class, 'showRegisterForm'])->name('register');
 // Routes d'authentification sociale
-Route::get('/auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/oauth/google/redirect', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/oauth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
+Route::get('/auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google.old');
 Route::get('/auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
 Route::get('/auth/facebook', [SocialAuthController::class, 'redirectToFacebook'])->name('auth.facebook');
 Route::get('/auth/facebook/callback', [SocialAuthController::class, 'handleFacebookCallback']);
