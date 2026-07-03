@@ -334,7 +334,7 @@
             </div> -->
 
             <!-- Boutons sociaux -->
-            <!-- <div class="grid grid-cols-2 gap-3 mb-5">
+            <div class="grid grid-cols-2 gap-3 mb-5">
                 <a href="{{ route('auth.google') }}" 
                    class="social-btn flex items-center justify-center space-x-2">
                     <i class="fab fa-google text-red-500 text-sm"></i>
@@ -346,7 +346,7 @@
                     <i class="fab fa-facebook text-blue-600 text-sm"></i>
                     <span class="text-sm">Facebook</span>
                 </a>
-            </div> -->
+            </div>
 
             <!-- Footer -->
             <div class="text-center pt-4 border-t border-gray-200">
