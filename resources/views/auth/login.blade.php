@@ -340,12 +340,6 @@
                     <i class="fab fa-google text-red-500 text-sm"></i>
                     <span class="text-sm">Google</span>
                 </a>
-                
-                <a href="{{ route('auth.facebook') }}" 
-                   class="social-btn flex items-center justify-center space-x-2">
-                    <i class="fab fa-facebook text-blue-600 text-sm"></i>
-                    <span class="text-sm">Facebook</span>
-                </a>
             </div>
 
             <!-- Footer -->

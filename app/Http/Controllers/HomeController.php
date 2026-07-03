@@ -178,6 +178,12 @@ public function __construct()
                 if ($request->ajax() || $request->wantsJson()) {
                     return response()->json(['success' => true, 'message' => 'Paiement réussi !']);
                 }
+                $user = auth()->user();
+                $etablissement = $user->etablissement;
+                if ($etablissement) {
+                    $etablissement->is_active = true;
+                    $etablissement->save();
+                }
                 return redirect()->route('billing.payment')->with('success', 'Paiement réussi ! Votre plan est activé.');
             }
 
