@@ -7,7 +7,8 @@ use App\Http\Controllers\{
     OpenAIController,
     AuthController,
     GeminiController,
-    HomeController
+    HomeController,
+    BillingController // Ajoutez ce controller si vous voulez séparer la logique de facturation
 };
 
 use App\Http\Controllers\Auth\SocialAuthController;
@@ -29,6 +30,7 @@ use Illuminate\Http\Request;
 Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
 Route::post('/chat/send', [ChatController::class, 'sendMessage'])->name('chat.send');
 Route::post('/chat/clear-history', [ChatController::class, 'clearHistory'])->name('chat.clear-history');
+
 // Page de login
 Route::get('/', function () {
     return view('auth.login');
@@ -43,7 +45,6 @@ Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 
-
 // Route pour le dashboard (à protéger)
 Route::get('/home', function () {
     return view('home');
@@ -54,6 +55,7 @@ Route::post('/ajax-login', [AjaxAuthController::class, 'login'])->name('ajax.log
 Route::post('/ajax/register', [AuthController::class, 'ajaxRegister'])->name('ajax.register');
 Route::get('/ajax/check-email', [AuthController::class, 'checkEmail'])->name('ajax.check-email');
 Route::get('/ajax-register', [AjaxAuthController::class, 'showRegisterForm'])->name('register');
+
 // Routes d'authentification sociale
 Route::get('/oauth/google/redirect', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/oauth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
@@ -88,19 +90,75 @@ Route::middleware('auth')->group(function () {
     })->middleware('throttle:6,1')->name('verification.resend');
 });
 
-// Éditeur (protégé)
-Route::middleware(['auth','web','user.active'])->group(function () {
+// Routes protégées par authentification
+Route::middleware(['auth', 'web', 'user.active'])->group(function () {
 
+    // Dashboard
+    Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
 
-// Route pour le dashboard (à protéger)
-Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
+    // ============================================
+    // ROUTES DE PAIEMENT (BILLING)
+    // ============================================
+    Route::prefix('billing')->name('billing.')->group(function () {
+        
+        // Page principale de paiement
+        Route::get('/payment', [HomeController::class, 'payment'])->name('payment');
+        
+        // Route pour la page de succès après paiement
+        Route::get('/payment/success', function () {
+            return view('billing.success');
+        })->name('payment.success');
+        
+        // Route pour la page d'annulation
+        Route::get('/payment/cancel', function () {
+            return view('billing.cancel');
+        })->name('payment.cancel');
+        
+        // PayPal Routes
+        Route::prefix('paypal')->name('paypal.')->group(function () {
+            // Créer une commande PayPal (AJAX)
+            Route::post('/create-order', [HomeController::class, 'createPayPalOrder'])
+                ->name('create')
+                ->middleware('throttle:5,1'); // 5 requêtes par minute
+            
+            // Capturer le paiement PayPal (AJAX + GET pour le retour)
+            Route::match(['POST', 'GET'], '/capture', [HomeController::class, 'capturePayPal'])
+                ->name('capture');
+            
+            // Webhook pour les notifications PayPal (optionnel)
+            Route::post('/webhook', [HomeController::class, 'handlePayPalWebhook'])
+                ->name('webhook')
+                ->withoutMiddleware(['auth', 'user.active']); // Le webhook ne nécessite pas d'authentification
+        });
+        
+        // Historique des paiements
+        Route::get('/history', [HomeController::class, 'paymentHistory'])->name('history');
+        
+        // Factures
+        Route::get('/invoices/{id}', [HomeController::class, 'showInvoice'])->name('invoice.show');
+        Route::get('/invoices/{id}/download', [HomeController::class, 'downloadInvoice'])->name('invoice.download');
+        
+        // Méthodes de paiement (si vous gérez plusieurs méthodes)
+        Route::get('/methods', [HomeController::class, 'paymentMethods'])->name('methods');
+        Route::post('/methods/default', [HomeController::class, 'setDefaultPaymentMethod'])->name('methods.default');
+        
+        // Gestion des abonnements (si vous utilisez des abonnements)
+        Route::get('/subscriptions', [HomeController::class, 'subscriptions'])->name('subscriptions');
+        Route::post('/subscriptions/cancel/{id}', [HomeController::class, 'cancelSubscription'])->name('subscriptions.cancel');
+        Route::post('/subscriptions/resume/{id}', [HomeController::class, 'resumeSubscription'])->name('subscriptions.resume');
+        
+        // Gestion des coupons/réductions
+        Route::post('/coupon/apply', [HomeController::class, 'applyCoupon'])->name('coupon.apply');
+        Route::post('/coupon/remove', [HomeController::class, 'removeCoupon'])->name('coupon.remove');
+    });
 
-    // Page de paiement
-    Route::get('/billing/payment', [HomeController::class, 'payment'])->name('billing.payment');
-    Route::post('/billing/payment/paypal/create', [HomeController::class, 'createPayPalOrder'])->name('billing.payment.paypal.create');
-    Route::any('/billing/payment/paypal/capture', [HomeController::class, 'capturePayPal'])->name('billing.payment.paypal.capture');
+    // Route de test pour PayPal (en développement)
+    if (app()->environment('local', 'development')) {
+        Route::get('/test/paypal', function () {
+            return view('test.paypal');
+        })->name('test.paypal');
+    }
 
-    
     // Profil utilisateur
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'index'])->name('index');
@@ -124,43 +182,37 @@ Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
         Route::get('/activities', [ProfileController::class, 'getActivities'])->name('activities');
     });
 
+    // Template scraping routes
+    Route::prefix('/scrape/templates')->group(function () {
+        Route::get('/', [TemplateScraperController::class, 'index'])->name('templates.index');
+        Route::get('/create', [TemplateScraperController::class, 'create'])->name('templates.create');
+        Route::post('/', [TemplateScraperController::class, 'store'])->name('scrape.templates.store');
+        Route::get('/{template}', [TemplateScraperController::class, 'show'])->name('templates.show');
+        Route::get('/{template}/edit', [TemplateScraperController::class, 'edit'])->name('templates.edit');
+        Route::put('/{template}', [TemplateScraperController::class, 'update'])->name('templates.update');
+        Route::delete('/{template}', [TemplateScraperController::class, 'destroy'])->name('templates.destroy');
+        Route::post('/scrape-now', [TemplateScraperController::class, 'scrapeNow'])->name('templates.scrape-now');
+        Route::get('/{template}/preview', [TemplateScraperController::class, 'preview'])->name('templates.preview');
+        Route::get('/{template}/raw-html', [TemplateScraperController::class, 'rawHtml'])->name('templates.raw-html');
+        Route::get('/{template}/raw-css', [TemplateScraperController::class, 'rawCss'])->name('templates.raw-css');
+    });
 
-// Template scraping routes
-Route::prefix('/scrape/templates')->group(function () {
-    Route::get('/', [TemplateScraperController::class, 'index'])->name('templates.index');
-    Route::get('/create', [TemplateScraperController::class, 'create'])->name('templates.create');
-    Route::post('/', [TemplateScraperController::class, 'store'])->name('scrape.templates.store');
-    Route::get('/{template}', [TemplateScraperController::class, 'show'])->name('templates.show');
-    Route::get('/{template}/edit', [TemplateScraperController::class, 'edit'])->name('templates.edit');
-    Route::put('/{template}', [TemplateScraperController::class, 'update'])->name('templates.update');
-    Route::delete('/{template}', [TemplateScraperController::class, 'destroy'])->name('templates.destroy');
-    Route::post('/scrape-now', [TemplateScraperController::class, 'scrapeNow'])->name('templates.scrape-now');
-    Route::get('/{template}/preview', [TemplateScraperController::class, 'preview'])->name('templates.preview');
-    Route::get('/{template}/raw-html', [TemplateScraperController::class, 'rawHtml'])->name('templates.raw-html');
-    Route::get('/{template}/raw-css', [TemplateScraperController::class, 'rawCss'])->name('templates.raw-css');
-});
+    // API Routes internes
+    Route::prefix('api')->group(function () {
+        Route::get('/templates', [TemplateScraperController::class, 'apiIndex']);
+        Route::post('/templates/scrape', [TemplateScraperController::class, 'apiScrape']);
+        Route::get('/templates/{template}', [TemplateScraperController::class, 'apiShow']);
+    });
 
-// API Routes
-Route::prefix('api')->group(function () {
-    Route::get('/templates', [TemplateScraperController::class, 'apiIndex']);
-    Route::post('/templates/scrape', [TemplateScraperController::class, 'apiScrape']);
-    Route::get('/templates/{template}', [TemplateScraperController::class, 'apiShow']);
-});
+    // Batch scraping route
+    Route::post('/batch-scrape', [TemplateScraperController::class, 'batchScrape'])->name('batch.scrape');
 
-// Batch scraping route
-Route::post('/batch-scrape', [TemplateScraperController::class, 'batchScrape'])->name('batch.scrape');
+    // Gemini routes
+    Route::get('/gemini/generate', [GeminiController::class, 'generate'])->name('gemini.generate');
+    Route::get('/gemini/test', [GeminiController::class, 'test'])->name('gemini.test');
 
-
-
-// routes/web.php ou routes/api.php
-
-// routes/web.php
-Route::get('/gemini/generate', [GeminiController::class, 'generate'])->name('gemini.generate');
-Route::get('/gemini/test', [GeminiController::class, 'test'])->name('gemini.test');
-
-// Dans votre fichier routes/web.php, ajoutez cette route dans le groupe auth
-Route::get('/api/global-search', [App\Http\Controllers\GlobalSearchController::class, 'search'])->name('global.search');
-
+    // Global Search
+    Route::get('/api/global-search', [App\Http\Controllers\GlobalSearchController::class, 'search'])->name('global.search');
 });
 
 // API Routes (protégées par Sanctum)
@@ -221,9 +273,16 @@ Route::prefix('api')->group(function () {
             Route::get('/usage/stats', [OpenAIController::class, 'usageStats']);
             Route::get('/status', [OpenAIController::class, 'status']);
         });
+        
+        // Routes de paiement pour l'API
+        Route::prefix('billing')->name('api.billing.')->group(function () {
+            Route::get('/payment-methods', [HomeController::class, 'apiPaymentMethods'])->name('methods');
+            Route::get('/history', [HomeController::class, 'apiPaymentHistory'])->name('history');
+            Route::get('/invoices', [HomeController::class, 'apiInvoices'])->name('invoices');
+            Route::post('/paypal/create', [HomeController::class, 'createPayPalOrder'])->name('paypal.create');
+            Route::post('/paypal/capture', [HomeController::class, 'capturePayPal'])->name('paypal.capture');
+        });
     });
-
- 
 });
 
 // Routes de santé
@@ -239,27 +298,16 @@ Route::get('/health', function () {
     ]);
 });
 
-
-
-
-
-
-
 Route::get('/search', function () {
     return null;
 })->name('search');
 
-
 Route::get('/test-email', function () {
-
     $to = "wahidfkiri5@gmail.com";
-
     Mail::raw('Ceci est un email de test envoyé depuis Laravel avec SMTP GoDaddy.', function ($message) use ($to) {
         $message->to($to)
                 ->subject('Test SMTP GoDaddy Laravel')
                 ->from('info@goexploriabusiness.com', 'GoExploria Business');
     });
-
     return "Email envoyé avec succès";
 });
-
