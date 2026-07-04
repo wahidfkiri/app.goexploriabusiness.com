@@ -7,8 +7,7 @@ use App\Http\Controllers\{
     OpenAIController,
     AuthController,
     GeminiController,
-    HomeController,
-    BillingController // Ajoutez ce controller si vous voulez séparer la logique de facturation
+    HomeController
 };
 
 use App\Http\Controllers\Auth\SocialAuthController;
@@ -90,74 +89,36 @@ Route::middleware('auth')->group(function () {
     })->middleware('throttle:6,1')->name('verification.resend');
 });
 
-// Routes protégées par authentification
+// Éditeur (protégé)
 Route::middleware(['auth', 'web', 'user.active'])->group(function () {
 
-    // Dashboard
+    // Route pour le dashboard (à protéger)
     Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
 
     // ============================================
-    // ROUTES DE PAIEMENT (BILLING)
+    // ROUTES DE PAIEMENT - CORRECTION
     // ============================================
-    Route::prefix('billing')->name('billing.')->group(function () {
-        
-        // Page principale de paiement
-        Route::get('/payment', [HomeController::class, 'payment'])->name('payment');
-        
-        // Route pour la page de succès après paiement
-        Route::get('/payment/success', function () {
-            return view('billing.success');
-        })->name('payment.success');
-        
-        // Route pour la page d'annulation
-        Route::get('/payment/cancel', function () {
-            return view('billing.cancel');
-        })->name('payment.cancel');
-        
-        // PayPal Routes
-        Route::prefix('paypal')->name('paypal.')->group(function () {
-            // Créer une commande PayPal (AJAX)
-            Route::post('/create-order', [HomeController::class, 'createPayPalOrder'])
-                ->name('create')
-                ->middleware('throttle:5,1'); // 5 requêtes par minute
-            
-            // Capturer le paiement PayPal (AJAX + GET pour le retour)
-            Route::match(['POST', 'GET'], '/capture', [HomeController::class, 'capturePayPal'])
-                ->name('capture');
-            
-            // Webhook pour les notifications PayPal (optionnel)
-            Route::post('/webhook', [HomeController::class, 'handlePayPalWebhook'])
-                ->name('webhook')
-                ->withoutMiddleware(['auth', 'user.active']); // Le webhook ne nécessite pas d'authentification
-        });
-        
-        // Historique des paiements
-        Route::get('/history', [HomeController::class, 'paymentHistory'])->name('history');
-        
-        // Factures
-        Route::get('/invoices/{id}', [HomeController::class, 'showInvoice'])->name('invoice.show');
-        Route::get('/invoices/{id}/download', [HomeController::class, 'downloadInvoice'])->name('invoice.download');
-        
-        // Méthodes de paiement (si vous gérez plusieurs méthodes)
-        Route::get('/methods', [HomeController::class, 'paymentMethods'])->name('methods');
-        Route::post('/methods/default', [HomeController::class, 'setDefaultPaymentMethod'])->name('methods.default');
-        
-        // Gestion des abonnements (si vous utilisez des abonnements)
-        Route::get('/subscriptions', [HomeController::class, 'subscriptions'])->name('subscriptions');
-        Route::post('/subscriptions/cancel/{id}', [HomeController::class, 'cancelSubscription'])->name('subscriptions.cancel');
-        Route::post('/subscriptions/resume/{id}', [HomeController::class, 'resumeSubscription'])->name('subscriptions.resume');
-        
-        // Gestion des coupons/réductions
-        Route::post('/coupon/apply', [HomeController::class, 'applyCoupon'])->name('coupon.apply');
-        Route::post('/coupon/remove', [HomeController::class, 'removeCoupon'])->name('coupon.remove');
-    });
-
-    // Route de test pour PayPal (en développement)
-    if (app()->environment('local', 'development')) {
-        Route::get('/test/paypal', function () {
-            return view('test.paypal');
-        })->name('test.paypal');
-    }
+    
+    // Page de paiement
+    Route::get('/billing/payment', [HomeController::class, 'payment'])->name('billing.payment');
+    
+    // PayPal - Création de commande (AJAX)
+    Route::post('/billing/payment/paypal/create', [HomeController::class, 'createPayPalOrder'])
+        ->name('billing.payment.paypal.create');
+    
+    // PayPal - Capture de paiement (AJAX + GET)
+    // CORRECTION: Utiliser Route::any() ou Route::match() pour accepter GET et POST
+    Route::any('/billing/payment/paypal/capture', [HomeController::class, 'capturePayPal'])
+        ->name('billing.payment.paypal.capture');
+    
+    // Pages de succès et d'annulation
+    Route::get('/billing/success', function () {
+        return view('billing.success');
+    })->name('billing.success');
+    
+    Route::get('/billing/cancel', function () {
+        return view('billing.cancel');
+    })->name('billing.cancel');
 
     // Profil utilisateur
     Route::prefix('profile')->name('profile.')->group(function () {
@@ -197,7 +158,7 @@ Route::middleware(['auth', 'web', 'user.active'])->group(function () {
         Route::get('/{template}/raw-css', [TemplateScraperController::class, 'rawCss'])->name('templates.raw-css');
     });
 
-    // API Routes internes
+    // API Routes
     Route::prefix('api')->group(function () {
         Route::get('/templates', [TemplateScraperController::class, 'apiIndex']);
         Route::post('/templates/scrape', [TemplateScraperController::class, 'apiScrape']);
@@ -272,15 +233,6 @@ Route::prefix('api')->group(function () {
             Route::get('/usage', [OpenAIController::class, 'usage']);
             Route::get('/usage/stats', [OpenAIController::class, 'usageStats']);
             Route::get('/status', [OpenAIController::class, 'status']);
-        });
-        
-        // Routes de paiement pour l'API
-        Route::prefix('billing')->name('api.billing.')->group(function () {
-            Route::get('/payment-methods', [HomeController::class, 'apiPaymentMethods'])->name('methods');
-            Route::get('/history', [HomeController::class, 'apiPaymentHistory'])->name('history');
-            Route::get('/invoices', [HomeController::class, 'apiInvoices'])->name('invoices');
-            Route::post('/paypal/create', [HomeController::class, 'createPayPalOrder'])->name('paypal.create');
-            Route::post('/paypal/capture', [HomeController::class, 'capturePayPal'])->name('paypal.capture');
         });
     });
 });
