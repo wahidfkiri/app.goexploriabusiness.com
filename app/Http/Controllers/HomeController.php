@@ -9,14 +9,21 @@ use App\Models\BillingRequestService;
 use App\Models\BillingSetting;
 use App\Models\Country;
 use App\Models\Etablissement;
+use App\Models\Invoice;
+use App\Models\InvoiceLine;
+use App\Models\Payment;
+use App\Models\PaymentTransaction;
 use App\Models\Plan;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Template;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
 use Srmklive\PayPal\Services\PayPal as PayPalClient;
 
 class HomeController extends Controller
@@ -94,13 +101,24 @@ public function __construct()
         $requests = BillingRequest::where('email', $user->email)->orWhere('company', $etablissement?->name)->latest()->take(5)->get();
         $requestItems = BillingRequestItem::whereIn('billing_request_id', $requests->pluck('id'))->with('service')->get();
 
+        $invoices = collect();
+        if ($etablissement) {
+            $invoices = Invoice::with('payments', 'lines')
+                ->where('client_id', $etablissement->id)
+                ->whereIn('status', ['payee', 'partiellement_payee'])
+                ->latest('invoice_date')
+                ->take(20)
+                ->get();
+        }
+
         return view('payment', compact(
             'settings',
             'discounts',
             'plans',
             'requests',
             'requestItems',
-            'etablissement'
+            'etablissement',
+            'invoices'
         ));
     }
 
@@ -108,7 +126,7 @@ public function __construct()
     {
         try {
             $data = $request->validate([
-                'amount' => 'required|numeric|min:1',
+                'amount' => 'required|numeric|min:0',
                 'plan_id' => 'nullable|integer',
                 'plan_name' => 'required|string',
             ]);
@@ -209,6 +227,8 @@ public function __construct()
             if ($this->paypalCaptureCompleted($result)) {
                 $this->activateLinkedEtablissement($orderId);
                 $request->session()->forget('paypal_orders.' . $orderId);
+
+                $this->createInvoiceAndSendEmail($orderId, $result);
 
                 if ($request->ajax() || $request->wantsJson()) {
                     return response()->json([
@@ -347,6 +367,157 @@ public function __construct()
             'user_id' => $user->id,
             'etablissement_id' => $etablissement->id,
         ]);
+    }
+
+    private function createInvoiceAndSendEmail(string $orderId, array $paypalResult): void
+    {
+        $user = auth()->user();
+        $etablissement = $user?->etablissement;
+
+        if (!$etablissement) {
+            Log::warning('Cannot create invoice: no etablissement found', ['order_id' => $orderId]);
+            return;
+        }
+
+        $sessionData = session('paypal_orders.' . $orderId, []);
+        $planName = $sessionData['plan_name'] ?? 'Plan';
+        $amount = $sessionData['amount'] ?? 0;
+
+        try {
+            DB::beginTransaction();
+
+            $settings = BillingSetting::first();
+            if (!$settings) {
+                $settings = BillingSetting::create([]);
+            }
+
+            $invoice = Invoice::create([
+                'client_id' => $etablissement->id,
+                'invoice_date' => now(),
+                'due_date' => now()->addDays($settings->payment_deadline_days ?: 30),
+                'payment_date' => now(),
+                'subtotal' => $amount,
+                'total' => $amount,
+                'paid_amount' => $amount,
+                'remaining_amount' => 0,
+                'status' => 'payee',
+                'client_name' => $etablissement->name,
+                'client_email' => $etablissement->email_contact ?? $user->email,
+                'client_address' => $etablissement->adresse,
+                'client_zipcode' => $etablissement->zip_code,
+                'client_city' => $etablissement->villeRelation?->name ?? $etablissement->ville,
+                'client_country' => 'Canada',
+            ]);
+
+            InvoiceLine::create([
+                'invoice_id' => $invoice->id,
+                'description' => 'Abonnement plan: ' . $planName,
+                'type' => 'service',
+                'quantity' => 1,
+                'unit_price' => $amount,
+                'subtotal' => $amount,
+                'total' => $amount,
+                'line_number' => 1,
+            ]);
+
+            $payment = Payment::create([
+                'etablissement_id' => $etablissement->id,
+                'invoice_id' => $invoice->id,
+                'client_id' => $etablissement->id,
+                'payment_date' => now(),
+                'amount' => $amount,
+                'method' => 'paypal',
+                'transaction_id' => $orderId,
+                'status' => 'complete',
+            ]);
+
+            $invoice->updatePaidAmount();
+
+            PaymentTransaction::create([
+                'etablissement_id' => $etablissement->id,
+                'payment_id' => $payment->id,
+                'invoice_id' => $invoice->id,
+                'gateway_type' => 'paypal',
+                'amount' => $amount,
+                'currency' => 'CAD',
+                'status' => 'completed',
+                'gateway_transaction_id' => $orderId,
+                'gateway_status' => $paypalResult['status'] ?? 'COMPLETED',
+                'gateway_response' => $paypalResult,
+                'plan_id' => $sessionData['plan_id'] ?? null,
+            ]);
+
+            DB::commit();
+
+            $this->sendPaymentEmail($invoice, $payment);
+
+            Log::info('Invoice created after PayPal payment', [
+                'invoice_id' => $invoice->id,
+                'payment_id' => $payment->id,
+                'order_id' => $orderId,
+            ]);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Failed to create invoice after PayPal payment', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    private function sendPaymentEmail(Invoice $invoice, Payment $payment): void
+    {
+        $clientEmail = $invoice->client_email;
+        if (!$clientEmail) {
+            return;
+        }
+
+        try {
+            $billingSettings = BillingSetting::first();
+            $pdf = $this->generateInvoicePdf($invoice, $billingSettings);
+
+            Mail::send('ecommerce::emails.payment-receipt', compact('payment', 'invoice'), function ($message) use ($clientEmail, $invoice, $payment, $pdf) {
+                $message->to($clientEmail, $invoice->client_name)
+                    ->subject('Confirmation de paiement - Facture ' . $invoice->invoice_number)
+                    ->attachData($pdf, 'facture-' . $invoice->invoice_number . '.pdf', ['mime' => 'application/pdf']);
+            });
+
+            Log::info('Payment confirmation email sent', [
+                'invoice_id' => $invoice->id,
+                'email' => $clientEmail,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to send payment email', [
+                'invoice_id' => $invoice->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function generateInvoicePdf(Invoice $invoice, ?BillingSetting $billingSettings = null): string
+    {
+        $billingSettings ??= BillingSetting::first();
+        $html = View::make('ecommerce::invoices.pdf', compact('invoice', 'billingSettings'))->render();
+
+        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            return \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)
+                ->setPaper('a4', 'portrait')
+                ->output();
+        }
+
+        $options = new \Dompdf\Options([
+            'defaultFont' => 'DejaVu Sans',
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+        ]);
+        $dompdf = new \Dompdf\Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $dompdf->output();
     }
 
     private function legacyCreatePayPalOrder(Request $request)

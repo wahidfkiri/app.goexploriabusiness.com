@@ -114,7 +114,49 @@
     </div>
     @endif
 
-    <!-- Billing History -->
+    <!-- Payment History -->
+    @if($invoices->count())
+    <div class="main-card-modern mt-3">
+        <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
+            <h5 style="margin: 0; font-weight: 700;"><i class="fas fa-receipt me-2"></i>Historique des paiements</h5>
+        </div>
+        <div style="padding: 16px 20px;">
+            <table style="width: 100%; font-size: 0.85rem;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #e5e7eb;">
+                        <th style="padding: 8px; text-align: left;">Facture</th>
+                        <th style="padding: 8px; text-align: left;">Date</th>
+                        <th style="padding: 8px; text-align: left;">Plan</th>
+                        <th style="padding: 8px; text-align: right;">Montant</th>
+                        <th style="padding: 8px; text-align: center;">Statut</th>
+                        <th style="padding: 8px; text-align: center;">Facture</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($invoices as $inv)
+                    @php $firstLine = $inv->lines->first(); @endphp
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 8px; font-weight: 600;">{{ $inv->invoice_number }}</td>
+                        <td style="padding: 8px;">{{ $inv->invoice_date->format('d/m/Y') }}</td>
+                        <td style="padding: 8px;">{{ $firstLine ? Str::limit($firstLine->description, 40) : '-' }}</td>
+                        <td style="padding: 8px; text-align: right; font-weight: 700;">{{ number_format($inv->total, 2) }} $</td>
+                        <td style="padding: 8px; text-align: center;">
+                            <span class="badge bg-{{ $inv->status_badge }}">{{ $inv->status_label }}</span>
+                        </td>
+                        <td style="padding: 8px; text-align: center;">
+                            <a href="{{ route('invoices.pdf', $inv) }}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Télécharger la facture PDF">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </a>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
+
+    <!-- Billing Requests History -->
     @if($requests->count())
     <div class="main-card-modern mt-3">
         <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
