@@ -157,59 +157,67 @@ public function __construct()
     }
 
     public function capturePayPal(Request $request)
-    {
-        $orderId = $request->order_id ?? $request->token;
+{
+    $orderId = $request->order_id ?? $request->token;
 
-        if (!$orderId) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'ID de commande manquant.'], 400);
-            }
-            return redirect()->route('billing.payment')->with('error', 'ID de commande manquant.');
+    if (!$orderId) {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => false, 'message' => 'ID de commande manquant.'], 400);
         }
-
-        try {
-            \Log::info('PayPal Capture - Order ID: ' . $orderId);
-            
-            $provider = new PayPalClient;
-            $provider->setApiCredentials(config('paypal'));
-            $provider->setCurrency('CAD');
-            $provider->getAccessToken();
-            $result = $provider->capturePaymentOrder($orderId);
-            
-            \Log::info('PayPal Capture Result: ', $result);
-            
-            // PayPal retourne 'COMPLETED' ou 'APPROVED' selon la version
-            $isCompleted = isset($result['status']) && in_array($result['status'], ['COMPLETED', 'APPROVED']);
-            
-            if ($isCompleted) {
-                if ($request->ajax() || $request->wantsJson()) {
-                    return response()->json(['success' => true, 'message' => 'Paiement réussi !']);
-                }
-                $user = auth()->user();
-                $etablissement = $user->etablissement;
-                if ($etablissement) {
-                    $etablissement->is_active = true;
-                    $etablissement->save();
-                }
-                return redirect()->route('billing.payment')->with('success', 'Paiement réussi ! Votre plan est activé.');
-            }
-            
-            // Log l'erreur détaillée
-            \Log::error('PayPal Capture Failed - Status: ' . ($result['status'] ?? 'unknown'), $result);
-            
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Le paiement n\'a pas été complété. Statut: ' . ($result['status'] ?? 'inconnu')], 500);
-            }
-            return redirect()->route('billing.payment')->with('error', 'Le paiement n\'a pas été complété. Statut: ' . ($result['status'] ?? 'inconnu'));
-        } catch (\Throwable $e) {
-            \Log::error('PayPal Capture Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Erreur de paiement : ' . $e->getMessage()], 500);
-            }
-            return redirect()->route('billing.payment')->with('error', 'Erreur de paiement : ' . $e->getMessage());
-        }
+        return redirect()->route('billing.payment')->with('error', 'ID de commande manquant.');
     }
+
+    try {
+        \Log::info('PayPal Capture - Order ID: ' . $orderId);
+        
+        $provider = new PayPalClient;
+        $provider->setApiCredentials(config('paypal'));
+        $provider->setCurrency('CAD');
+        $provider->getAccessToken();
+        $result = $provider->capturePaymentOrder($orderId);
+        
+        \Log::info('PayPal Capture Result: ', $result);
+        
+        // CORRECTION: Vérifier le statut correctement
+        $isCompleted = isset($result['status']) && in_array($result['status'], ['COMPLETED', 'APPROVED']);
+        
+        // CORRECTION: Vérifier également si des captures sont présentes
+        if (!$isCompleted && isset($result['purchase_units'][0]['payments']['captures'][0]['status'])) {
+            $captureStatus = $result['purchase_units'][0]['payments']['captures'][0]['status'];
+            $isCompleted = in_array($captureStatus, ['COMPLETED', 'APPROVED']);
+        }
+        
+        if ($isCompleted) {
+            // Activer l'établissement
+            $user = auth()->user();
+            if ($user && $user->etablissement) {
+                $user->etablissement->is_active = true;
+                $user->etablissement->save();
+            }
+            
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Paiement réussi !']);
+            }
+            return redirect()->route('billing.payment')->with('success', 'Paiement réussi ! Votre plan est activé.');
+        }
+        
+        // Log l'erreur détaillée
+        \Log::error('PayPal Capture Failed - Status: ' . ($result['status'] ?? 'unknown'), $result);
+        
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => false, 'message' => 'Le paiement n\'a pas été complété. Statut: ' . ($result['status'] ?? 'inconnu')], 400);
+        }
+        return redirect()->route('billing.payment')->with('error', 'Le paiement n\'a pas été complété. Statut: ' . ($result['status'] ?? 'inconnu'));
+        
+    } catch (\Throwable $e) {
+        \Log::error('PayPal Capture Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => false, 'message' => 'Erreur de paiement : ' . $e->getMessage()], 500);
+        }
+        return redirect()->route('billing.payment')->with('error', 'Erreur de paiement : ' . $e->getMessage());
+    }
+}
 
     private function getRecentActivities()
     {
