@@ -422,6 +422,7 @@
 </style>
 
 {{-- Search Script --}}
+@if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('super-admin'))
 <script>
 (function() {
     'use strict';
@@ -689,6 +690,7 @@
     });
 })();
 </script>
+@endif
 
 {{-- Chat Styles (keep existing) --}}
 <style>

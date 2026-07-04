@@ -151,67 +151,82 @@
 @endif
 
 <script>
-    let selectedPlan = null;
+    document.addEventListener('DOMContentLoaded', function() {
+        let selectedPlan = null;
 
-    document.querySelectorAll('.plan-card').forEach(card => {
-        card.addEventListener('click', function() {
-            document.querySelectorAll('.plan-card').forEach(c => {
-                c.style.borderColor = '#e5e7eb';
-                const check = c.querySelector('.plan-check');
-                if (check) check.style.display = 'none';
-            });
-            this.style.borderColor = '#ef7724';
-            const check = this.querySelector('.plan-check');
-            if (check) check.style.display = 'flex';
+        const planCards = document.querySelectorAll('.plan-card');
+        if (planCards.length > 0) {
+            planCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    planCards.forEach(c => {
+                        c.style.borderColor = '#e5e7eb';
+                        const check = c.querySelector('.plan-check');
+                        if (check) check.style.display = 'none';
+                    });
+                    this.style.borderColor = '#ef7724';
+                    const check = this.querySelector('.plan-check');
+                    if (check) check.style.display = 'flex';
 
-            selectedPlan = {
-                id: this.dataset.id,
-                name: this.dataset.name,
-                price: parseFloat(this.dataset.price)
-            };
+                    selectedPlan = {
+                        id: this.dataset.id,
+                        name: this.dataset.name,
+                        price: parseFloat(this.dataset.price)
+                    };
 
-            document.getElementById('selectedPlanName').textContent = selectedPlan.name;
-            document.getElementById('selectedPlanPrice').textContent = selectedPlan.price.toFixed(2) + ' $';
-            document.getElementById('selectedPlanTotal').textContent = selectedPlan.price.toFixed(2) + ' $';
-            document.getElementById('paymentSection').style.display = 'block';
-            document.getElementById('payment-error').style.display = 'none';
-        });
-    });
-
-    @if($paypalClientId)
-    if (typeof paypal !== 'undefined') {
-        paypal.Buttons({
-            createOrder: function() {
-                if (!selectedPlan) {
-                    document.getElementById('payment-error').textContent = 'Veuillez d\'abord sélectionner un plan.';
-                    document.getElementById('payment-error').style.display = 'block';
-                    return;
-                }
-                document.getElementById('payment-loader').style.display = 'block';
-                document.getElementById('payment-error').style.display = 'none';
-
-                return fetch('{{ route("billing.payment.paypal.create") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: JSON.stringify({
-                        amount: selectedPlan.price,
-                        plan_name: selectedPlan.name
-                    })
-                }).then(function(res) {
-                    return res.json();
-                }).then(function(data) {
-                    document.getElementById('payment-loader').style.display = 'none';
-                    if (data.success) {
-                        return data.order_id;
-                    }
-                    document.getElementById('payment-error').textContent = data.message || 'Erreur PayPal.';
-                    document.getElementById('payment-error').style.display = 'block';
-                    throw new Error(data.message);
+                    document.getElementById('selectedPlanName').textContent = selectedPlan.name;
+                    document.getElementById('selectedPlanPrice').textContent = selectedPlan.price.toFixed(2) + ' $';
+                    document.getElementById('selectedPlanTotal').textContent = selectedPlan.price.toFixed(2) + ' $';
+                    document.getElementById('paymentSection').style.display = 'block';
+                    document.getElementById('payment-error').style.display = 'none';
                 });
-            },
+            });
+        }
+
+@if($paypalClientId)
+        if (typeof paypal !== 'undefined') {
+            paypal.Buttons({
+                createOrder: function() {
+                    if (!selectedPlan) {
+                        document.getElementById('payment-error').textContent = 'Veuillez d\'abord sélectionner un plan.';
+                        document.getElementById('payment-error').style.display = 'block';
+                        return;
+                    }
+                    document.getElementById('payment-loader').style.display = 'block';
+                    document.getElementById('payment-error').style.display = 'none';
+
+                    return fetch('{{ route("billing.payment.paypal.create") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            amount: selectedPlan.price,
+                            plan_name: selectedPlan.name
+                        })
+                    }).then(function(res) {
+                        if (!res.ok) {
+                            return res.text().then(function(text) {
+                                try { return JSON.parse(text); } catch(e) { return { success: false, message: text }; }
+                            });
+                        }
+                        return res.json();
+                    }).then(function(data) {
+                        document.getElementById('payment-loader').style.display = 'none';
+                        if (data.success) {
+                            return data.order_id;
+                        }
+                        document.getElementById('payment-error').textContent = data.message || 'Erreur PayPal.';
+                        document.getElementById('payment-error').style.display = 'block';
+                        throw new Error(data.message);
+                    }).catch(function(err) {
+                        document.getElementById('payment-loader').style.display = 'none';
+                        document.getElementById('payment-error').textContent = 'Erreur de connexion au serveur.';
+                        document.getElementById('payment-error').style.display = 'block';
+                        console.error('createOrder error:', err);
+                    });
+                },
             onApprove: function(data) {
                 document.getElementById('payment-loader').style.display = 'block';
                 document.getElementById('payment-error').style.display = 'none';
@@ -219,10 +234,16 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
                     body: JSON.stringify({ order_id: data.orderID })
                 }).then(function(res) {
+                    if (!res.ok) {
+                        return res.text().then(function(text) {
+                            try { return JSON.parse(text); } catch(e) { return { success: false, message: text }; }
+                        });
+                    }
                     return res.json();
                 }).then(function(result) {
                     document.getElementById('payment-loader').style.display = 'none';

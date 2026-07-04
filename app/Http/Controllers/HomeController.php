@@ -168,13 +168,20 @@ public function __construct()
         }
 
         try {
+            \Log::info('PayPal Capture - Order ID: ' . $orderId);
+            
             $provider = new PayPalClient;
             $provider->setApiCredentials(config('paypal'));
             $provider->setCurrency('CAD');
             $provider->getAccessToken();
             $result = $provider->capturePaymentOrder($orderId);
-
-            if (isset($result['status']) && $result['status'] === 'COMPLETED') {
+            
+            \Log::info('PayPal Capture Result: ', $result);
+            
+            // PayPal retourne 'COMPLETED' ou 'APPROVED' selon la version
+            $isCompleted = isset($result['status']) && in_array($result['status'], ['COMPLETED', 'APPROVED']);
+            
+            if ($isCompleted) {
                 if ($request->ajax() || $request->wantsJson()) {
                     return response()->json(['success' => true, 'message' => 'Paiement réussi !']);
                 }
@@ -186,12 +193,17 @@ public function __construct()
                 }
                 return redirect()->route('billing.payment')->with('success', 'Paiement réussi ! Votre plan est activé.');
             }
-
+            
+            // Log l'erreur détaillée
+            \Log::error('PayPal Capture Failed - Status: ' . ($result['status'] ?? 'unknown'), $result);
+            
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Le paiement a échoué. Veuillez réessayer.'], 500);
+                return response()->json(['success' => false, 'message' => 'Le paiement n\'a pas été complété. Statut: ' . ($result['status'] ?? 'inconnu')], 500);
             }
-            return redirect()->route('billing.payment')->with('error', 'Le paiement a échoué. Veuillez réessayer.');
+            return redirect()->route('billing.payment')->with('error', 'Le paiement n\'a pas été complété. Statut: ' . ($result['status'] ?? 'inconnu'));
         } catch (\Throwable $e) {
+            \Log::error('PayPal Capture Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Erreur de paiement : ' . $e->getMessage()], 500);
             }
