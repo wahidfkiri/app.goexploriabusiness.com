@@ -228,7 +228,12 @@ public function __construct()
                 'response' => $result,
             ]);
 
-            $message = 'Le paiement n\'a pas ete complete. Statut: ' . ($result['status'] ?? 'inconnu');
+            $paypalError = $this->getPaypalErrorMessage($result);
+            if ($paypalError) {
+                $message = 'Paiement refuse par PayPal : ' . $paypalError;
+            } else {
+                $message = 'Le paiement n\'a pas ete complete. Statut: ' . ($result['status'] ?? 'inconnu');
+            }
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $message], 400);
@@ -287,6 +292,19 @@ public function __construct()
         $captureStatus = $result['purchase_units'][0]['payments']['captures'][0]['status'] ?? null;
 
         return in_array($captureStatus, ['COMPLETED', 'APPROVED'], true);
+    }
+
+    private function getPaypalErrorMessage(array $result): ?string
+    {
+        if (isset($result['name']) && isset($result['message'])) {
+            $details = '';
+            if (isset($result['details'][0]['issue'])) {
+                $details = ' — ' . $result['details'][0]['issue'];
+            }
+            return $result['name'] . ': ' . $result['message'] . $details;
+        }
+
+        return null;
     }
 
     private function activateLinkedEtablissement(string $orderId): void
