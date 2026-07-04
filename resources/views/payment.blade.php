@@ -271,7 +271,8 @@
                 console.error('PayPal Error:', err);
             }
         }).render('#paypal-button-container');
-    }
+        }
     @endif
+    });
 </script>
 @endsection
