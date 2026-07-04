@@ -24,6 +24,6 @@ return [
     'validate_ssl'   => env('PAYPAL_VALIDATE_SSL', true),
     
     // CORRECTION: Ajout de l'URL de retour
-    'return_url'     => env('PAYPAL_RETURN_URL', route('billing.payment.paypal.capture')),
-    'cancel_url'     => env('PAYPAL_CANCEL_URL', route('billing.payment')),
+     'return_url'     => env('PAYPAL_RETURN_URL', null),
+    'cancel_url'     => env('PAYPAL_CANCEL_URL', null),
 ];
