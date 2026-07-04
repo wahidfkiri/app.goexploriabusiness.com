@@ -283,6 +283,10 @@ public function __construct()
 
     private function paypalCaptureCompleted(array $result): bool
     {
+        if (isset($result['error'])) {
+            return false;
+        }
+
         $status = $result['status'] ?? null;
 
         if (in_array($status, ['COMPLETED', 'APPROVED'], true)) {
@@ -296,12 +300,17 @@ public function __construct()
 
     private function getPaypalErrorMessage(array $result): ?string
     {
-        if (isset($result['name']) && isset($result['message'])) {
+        $error = $result['error'] ?? $result;
+
+        if (isset($error['name']) && isset($error['message'])) {
             $details = '';
-            if (isset($result['details'][0]['issue'])) {
-                $details = ' — ' . $result['details'][0]['issue'];
+            $issue = $error['details'][0]['issue']
+                ?? $error['details'][0]['description']
+                ?? null;
+            if ($issue) {
+                $details = ' — ' . $issue;
             }
-            return $result['name'] . ': ' . $result['message'] . $details;
+            return $error['name'] . ': ' . $error['message'] . $details;
         }
 
         return null;
