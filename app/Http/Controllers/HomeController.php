@@ -15,6 +15,8 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Template;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Srmklive\PayPal\Services\PayPal as PayPalClient;
 
 class HomeController extends Controller
@@ -105,6 +107,224 @@ public function __construct()
     public function createPayPalOrder(Request $request)
     {
         try {
+            $data = $request->validate([
+                'amount' => 'required|numeric|min:1',
+                'plan_id' => 'nullable|integer',
+                'plan_name' => 'required|string',
+            ]);
+
+            $amount = number_format((float) $data['amount'], 2, '.', '');
+            $user = auth()->user();
+            $etablissement = $user?->etablissement;
+            $referenceId = uniqid('plan_', true);
+
+            $provider = $this->makePayPalProvider();
+
+            $order = $provider->createOrder([
+                'intent' => 'CAPTURE',
+                'purchase_units' => [
+                    [
+                        'reference_id' => $referenceId,
+                        'description' => 'Paiement plan: ' . $data['plan_name'],
+                        'custom_id' => (string) ($etablissement?->id ?? $user?->id ?? $referenceId),
+                        'amount' => [
+                            'currency_code' => 'CAD',
+                            'value' => $amount,
+                        ],
+                    ],
+                ],
+                'application_context' => [
+                    'cancel_url' => route('billing.payment'),
+                    'return_url' => route('billing.payment.paypal.capture'),
+                    'brand_name' => 'Go Exploria Business',
+                    'locale' => 'fr-FR',
+                    'landing_page' => 'BILLING',
+                    'user_action' => 'PAY_NOW',
+                ],
+            ]);
+
+            if (($order['id'] ?? null) && ($order['status'] ?? null) === 'CREATED') {
+                session([
+                    'paypal_last_order_id' => $order['id'],
+                    'paypal_orders.' . $order['id'] => [
+                        'user_id' => $user?->id,
+                        'etablissement_id' => $etablissement?->id,
+                        'plan_id' => $data['plan_id'] ?? null,
+                        'plan_name' => $data['plan_name'],
+                        'amount' => $amount,
+                        'currency' => 'CAD',
+                    ],
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'order_id' => $order['id'],
+                    'orderID' => $order['id'],
+                ]);
+            }
+
+            Log::error('PayPal order creation failed', ['response' => $order]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $order['message'] ?? 'Erreur lors de la creation du paiement PayPal.',
+            ], 500);
+        } catch (\Throwable $e) {
+            Log::error('PayPal order creation exception: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur PayPal : ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function capturePayPal(Request $request)
+    {
+        $orderId = $this->extractPayPalOrderId($request);
+
+        if (!$orderId) {
+            $message = 'ID de commande PayPal manquant. Veuillez relancer le paiement.';
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+
+            return redirect()->route('billing.payment')->with('error', $message);
+        }
+
+        try {
+            Log::info('PayPal capture started', ['order_id' => $orderId]);
+
+            $provider = $this->makePayPalProvider();
+            $result = $provider->capturePaymentOrder($orderId);
+
+            Log::info('PayPal capture result', [
+                'order_id' => $orderId,
+                'response' => $result,
+            ]);
+
+            if ($this->paypalCaptureCompleted($result)) {
+                $this->activateLinkedEtablissement($orderId);
+                $request->session()->forget('paypal_orders.' . $orderId);
+
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Paiement reussi ! Votre plan est active.',
+                        'redirect_url' => route('billing.success'),
+                    ]);
+                }
+
+                return redirect()->route('billing.success')
+                    ->with('success', 'Paiement reussi ! Votre plan est active.');
+            }
+
+            Log::error('PayPal capture not completed', [
+                'order_id' => $orderId,
+                'status' => $result['status'] ?? 'unknown',
+                'response' => $result,
+            ]);
+
+            $message = 'Le paiement n\'a pas ete complete. Statut: ' . ($result['status'] ?? 'inconnu');
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+
+            return redirect()->route('billing.payment')->with('error', $message);
+        } catch (\Throwable $e) {
+            Log::error('PayPal capture exception: ' . $e->getMessage(), [
+                'order_id' => $orderId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur de paiement : ' . $e->getMessage(),
+                ], 500);
+            }
+
+            return redirect()->route('billing.payment')
+                ->with('error', 'Erreur de paiement : ' . $e->getMessage());
+        }
+    }
+
+    private function makePayPalProvider(): PayPalClient
+    {
+        $provider = new PayPalClient;
+        $provider->setApiCredentials(config('paypal'));
+        $provider->setCurrency('CAD');
+        $provider->getAccessToken();
+
+        return $provider;
+    }
+
+    private function extractPayPalOrderId(Request $request): ?string
+    {
+        $orderId = $request->input('order_id')
+            ?? $request->input('orderID')
+            ?? $request->input('orderId')
+            ?? $request->input('id')
+            ?? $request->input('token')
+            ?? $request->query('token')
+            ?? session('paypal_last_order_id');
+
+        return $orderId ? trim((string) $orderId) : null;
+    }
+
+    private function paypalCaptureCompleted(array $result): bool
+    {
+        $status = $result['status'] ?? null;
+
+        if (in_array($status, ['COMPLETED', 'APPROVED'], true)) {
+            return true;
+        }
+
+        $captureStatus = $result['purchase_units'][0]['payments']['captures'][0]['status'] ?? null;
+
+        return in_array($captureStatus, ['COMPLETED', 'APPROVED'], true);
+    }
+
+    private function activateLinkedEtablissement(string $orderId): void
+    {
+        $user = auth()->user();
+        $etablissement = $user?->etablissement;
+
+        if (!$etablissement) {
+            Log::warning('PayPal paid but no etablissement linked to user', [
+                'order_id' => $orderId,
+                'user_id' => $user?->id,
+            ]);
+
+            return;
+        }
+
+        $updates = ['is_active' => true];
+
+        if (Schema::hasColumn('etablissements', 'subscription_status')) {
+            $updates['subscription_status'] = 'active';
+        }
+
+        if (Schema::hasColumn('etablissements', 'subscription_expires_at')) {
+            $updates['subscription_expires_at'] = now()->addMonth()->toDateString();
+        }
+
+        $etablissement->forceFill($updates)->save();
+
+        Log::info('Etablissement activated after PayPal payment', [
+            'order_id' => $orderId,
+            'user_id' => $user->id,
+            'etablissement_id' => $etablissement->id,
+        ]);
+    }
+
+    private function legacyCreatePayPalOrder(Request $request)
+    {
+        try {
             $request->validate([
                 'amount' => 'required|numeric|min:1',
                 'plan_name' => 'required|string',
@@ -156,7 +376,7 @@ public function __construct()
         }
     }
 
-    public function capturePayPal(Request $request)
+    private function legacyCapturePayPal(Request $request)
 {
     $orderId = $request->order_id ?? $request->token;
 

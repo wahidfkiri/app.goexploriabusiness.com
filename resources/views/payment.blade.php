@@ -148,15 +148,36 @@
 </main>
 
 @if($paypalClientId)
-<script src="https://www.paypal.com/sdk/js?client-id={{ $paypalClientId }}&currency=CAD&locale=fr_FR" data-sdk-integration-source="button-factory"></script>
+<script src="https://www.paypal.com/sdk/js?client-id={{ $paypalClientId }}&currency=CAD&locale=fr_FR&intent=capture&enable-funding=card" data-sdk-integration-source="button-factory"></script>
 @endif
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let selectedPlan = null;
+        let lastCreatedOrderId = null;
         const errorElement = document.getElementById('payment-error');
         const successElement = document.getElementById('payment-success');
         const loaderElement = document.getElementById('payment-loader');
+
+        function parseJsonResponse(response) {
+            return response.text().then(function(text) {
+                let payload = {};
+
+                if (text) {
+                    try {
+                        payload = JSON.parse(text);
+                    } catch (e) {
+                        payload = { message: 'Erreur de communication avec le serveur' };
+                    }
+                }
+
+                if (!response.ok) {
+                    throw new Error(payload.message || 'Erreur de communication avec le serveur');
+                }
+
+                return payload;
+            });
+        }
 
         const planCards = document.querySelectorAll('.plan-card');
         
@@ -222,27 +243,24 @@
                             'Accept': 'application/json'
                         },
                         body: JSON.stringify({
+                            plan_id: selectedPlan.id,
                             amount: selectedPlan.price,
                             plan_name: selectedPlan.name
                         })
                     }).then(function(response) {
                         // CORRECTION: Gérer correctement la réponse
-                        if (!response.ok) {
-                            return response.text().then(function(text) {
-                                try {
-                                    const json = JSON.parse(text);
-                                    throw new Error(json.message || 'Erreur serveur');
-                                } catch(e) {
-                                    throw new Error('Erreur de communication avec le serveur');
-                                }
-                            });
-                        }
-                        return response.json();
+                        return parseJsonResponse(response);
                     }).then(function(data) {
                         if (loaderElement) loaderElement.style.display = 'none';
                         
                         if (data.success) {
-                            return data.order_id;
+                            lastCreatedOrderId = data.order_id || data.orderID || data.id;
+
+                            if (!lastCreatedOrderId) {
+                                throw new Error('ID de commande PayPal manquant.');
+                            }
+
+                            return lastCreatedOrderId;
                         } else {
                             if (errorElement) {
                                 errorElement.textContent = data.message || 'Erreur lors de la création du paiement.';
@@ -264,6 +282,17 @@
                     if (loaderElement) loaderElement.style.display = 'block';
                     if (errorElement) errorElement.style.display = 'none';
                     if (successElement) successElement.style.display = 'none';
+
+                    const approvedOrderId = data.orderID || data.orderId || data.order_id || data.id || lastCreatedOrderId;
+
+                    if (!approvedOrderId) {
+                        if (loaderElement) loaderElement.style.display = 'none';
+                        if (errorElement) {
+                            errorElement.textContent = 'ID de commande PayPal manquant. Veuillez relancer le paiement.';
+                            errorElement.style.display = 'block';
+                        }
+                        return Promise.reject(new Error('ID de commande PayPal manquant.'));
+                    }
                     
                     return fetch('{{ route("billing.payment.paypal.capture") }}', {
                         method: 'POST',
@@ -273,20 +302,10 @@
                             'X-Requested-With': 'XMLHttpRequest',
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify({ order_id: data.orderID })
+                        body: JSON.stringify({ order_id: approvedOrderId })
                     }).then(function(response) {
                         // CORRECTION: Gérer correctement la réponse
-                        if (!response.ok) {
-                            return response.text().then(function(text) {
-                                try {
-                                    const json = JSON.parse(text);
-                                    throw new Error(json.message || 'Erreur serveur');
-                                } catch(e) {
-                                    throw new Error('Erreur de communication avec le serveur');
-                                }
-                            });
-                        }
-                        return response.json();
+                        return parseJsonResponse(response);
                     }).then(function(result) {
                         if (loaderElement) loaderElement.style.display = 'none';
                         
@@ -297,7 +316,7 @@
                             }
                             // Redirection après un court délai
                             setTimeout(function() {
-                                window.location.href = '{{ route("billing.payment") }}?success=1';
+                                window.location.href = result.redirect_url || '{{ route("billing.success") }}';
                             }, 1500);
                         } else {
                             if (errorElement) {
